@@ -39,9 +39,12 @@ export function Header() {
 
         {/* Desktop Login Button */}
         <div className="hidden md:flex items-center gap-4">
-          <button className="px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-opacity-90 transition-all">
+          <Link
+            href="/dashboard"
+            className="px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-opacity-90 transition-all"
+          >
             Войти
-          </button>
+          </Link>
         </div>
 
         {/* Mobile Menu Button */}
@@ -63,9 +66,12 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            <button className="w-full px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-opacity-90 transition-all mt-2">
+            <Link
+              href="/dashboard"
+              className="w-full px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-opacity-90 transition-all mt-2 text-center"
+            >
               Войти
-            </button>
+            </Link>
           </div>
         </nav>
       )}

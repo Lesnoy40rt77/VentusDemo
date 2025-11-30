@@ -4,6 +4,7 @@ import { Button } from "@/components/button"
 import { Card } from "@/components/card"
 import { IconCircle } from "@/components/icon-circle"
 import { Mountain, Users, MapPin, Shield, TreePine } from "lucide-react"
+import Link from "next/link"
 
 export default function LandingPage() {
   return (
@@ -30,9 +31,14 @@ export default function LandingPage() {
               Ventus помогает вам спланировать, обнаружить и поделиться горными маршрутами. От лесных троп до горных
               вершин — все в одном месте.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button variant="primary">Начать путешествие</Button>
-              <Button variant="outline">Узнать больше</Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/builder">
+                <Button variant="primary">Начать путешествие</Button>
+              </Link>
+
+              <Link href="#how-it-works">
+                <Button variant="outline">Узнать больше</Button>
+              </Link>
             </div>
           </div>
 
@@ -83,7 +89,7 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-muted/30">
+      <section className="py-20 bg-muted/30" id="how-it-works">
         <div className="max-w-7xl mx-auto px-8">
           <h2 className="text-4xl font-semibold text-center mb-16">Как это работает</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -185,7 +191,9 @@ export default function LandingPage() {
           <p className="text-lg mb-8 opacity-90">
             Присоединяйтесь к тысячам путешественников, которые открывают новые маршруты каждый день.
           </p>
-          <Button variant="secondary">Начать бесплатно</Button>
+          <Link href="/dashboard">
+            <Button variant="secondary">Начать бесплатно</Button>
+          </Link>
         </div>
       </section>
 
