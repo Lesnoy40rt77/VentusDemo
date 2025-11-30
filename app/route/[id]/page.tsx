@@ -1,22 +1,58 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { useParams } from "next/navigation"
+import Link from "next/link"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/card"
 import { Button } from "@/components/button"
-import Link from "next/link"
 import { MapPin, Clock } from "lucide-react"
-import { prisma } from "@/lib/db"
-import RouteDiscussionClient from "./RouteDiscussionClient"
 import RouteStaticMap from "@/components/route-static-map"
+import RouteDiscussionClient from "./RouteDiscussionClient"
 
 type LatLng = { lat: number; lng: number }
 
-// аккуратно вытащим точки из JSON
+type Creator = {
+  id: string
+  name: string | null
+  email: string
+}
+
+type RouteItem = {
+  id: string
+  title: string
+  description: string | null
+  distanceKm: number
+  durationHrs: number | null
+  points: unknown
+  createdAt: string
+  creator: Creator
+}
+
+type Post = {
+  id: string
+  title: string
+  content: string
+  createdAt: string
+  author: {
+    id: string
+    name: string | null
+    email: string
+  }
+  route?: {
+    id: string
+    title: string
+  } | null
+  comments: { id: string }[]
+}
+
 function normalizePoints(points: unknown): LatLng[] {
   if (!Array.isArray(points)) return []
-  return points
-    .map((p: any) =>
-      typeof p === "object" && p !== null
-        ? { lat: Number(p.lat), lng: Number(p.lng) }
+  return (points as any[])
+    .map((p) =>
+      p && typeof p === "object"
+        ? { lat: Number((p as any).lat), lng: Number((p as any).lng) }
         : null,
     )
     .filter(
@@ -25,130 +61,162 @@ function normalizePoints(points: unknown): LatLng[] {
     )
 }
 
-async function fetchWeatherForRoute(points: LatLng[]) {
-  if (points.length < 2) return null
-  const mid = points[Math.floor(points.length / 2)]
+export default function RoutePage() {
+  const params = useParams<{ id: string }>()
+  const id = params?.id
 
-  try {
-    const url = new URL("https://api.open-meteo.com/v1/forecast")
-    url.searchParams.set("latitude", String(mid.lat))
-    url.searchParams.set("longitude", String(mid.lng))
-    url.searchParams.set(
-      "daily",
-      "temperature_2m_max,temperature_2m_min,precipitation_sum",
-    )
-    url.searchParams.set("timezone", "auto")
+  const [route, setRoute] = useState<RouteItem | null>(null)
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-    const res = await fetch(url.toString(), {
-      cache: "no-store",
-    })
+  const [weather, setWeather] = useState<any | null>(null)
+  const [loadingWeather, setLoadingWeather] = useState(false)
 
-    if (!res.ok) {
-      console.error("weather upstream status", res.status)
-      return null
+  // 1. грузим маршрут и посты
+  useEffect(() => {
+    if (!id) {
+      setError("Не удалось определить ID маршрута из URL")
+      setLoading(false)
+      return
     }
 
-    const data = await res.json()
-    return data
-  } catch (e) {
-    console.error("weather fetch error", e)
-    return null
-  }
-}
+    const run = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-export default async function RoutePage({
-  params,
-}: {
-  params: { id: string }
-}) {
-  // 🔹 максимально прямолинейно: просто берём params.id
-  const id = params.id
+        const [routesRes, postsRes] = await Promise.all([
+          fetch("/api/routes", { cache: "no-store" }),
+          fetch("/api/posts", { cache: "no-store" }),
+        ])
 
-  // если почему-то даже тут id нет — покажем страницу, а не упадём
-  if (!id) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center px-4">
-          <Card className="p-6 w-full max-w-md text-center space-y-3">
-            <p className="text-sm text-foreground/70">
-              Не удалось определить ID маршрута из URL.
-            </p>
-            <p className="text-xs text-foreground/50">
-              Попробуйте вернуться к базе треков и открыть маршрут ещё раз.
-            </p>
-            <Button asChild className="w-full" variant="secondary">
-              <Link href="/database">Вернуться к базе треков</Link>
-            </Button>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
+        if (!routesRes.ok || !postsRes.ok) {
+          console.error(
+            "RoutePage data status",
+            routesRes.status,
+            postsRes.status,
+          )
+          setError("Не удалось загрузить данные маршрута")
+          setLoading(false)
+          return
+        }
 
-  // пробуем достать маршрут из БД
-  let route = null as Awaited<
-    ReturnType<typeof prisma.route.findUnique>
-  > | null
+        const routesData = (await routesRes.json()) as RouteItem[]
+        const postsData = (await postsRes.json()) as Post[]
 
-  try {
-    route = await prisma.route.findUnique({
-      where: { id }, // если id нормальный и такой маршрут есть — он сюда попадёт
-      include: {
-        creator: { select: { id: true, name: true, email: true } },
-        posts: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            author: { select: { id: true, name: true, email: true } },
-          },
-        },
-      },
-    })
-  } catch (e) {
-    console.error("RoutePage prisma.findUnique error:", e)
-  }
+        const found = routesData.find((r) => r.id === id)
 
-  // если ничего не нашли — аккуратная «не найдено», но БЕЗ notFound()
-  if (!route) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center px-4">
-          <Card className="p-6 w-full max-w-md text-center space-y-3">
-            <p className="text-sm text-foreground/70">
-              Маршрут с таким ID не найден в базе.
-            </p>
-            <p className="text-xs text-foreground/50 break-all">
-              ID: <code>{id}</code>
-            </p>
-            <Button asChild className="w-full" variant="secondary">
-              <Link href="/database">Вернуться к базе треков</Link>
-            </Button>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
+        if (!found) {
+          setError("Маршрут с таким ID не найден")
+          setRoute(null)
+          setPosts([])
+          setLoading(false)
+          return
+        }
 
-  const points = normalizePoints(route.points)
-  const center: LatLng =
-    points.length > 0
-      ? points[Math.floor(points.length / 2)]
-      : { lat: 61.78, lng: 34.35 }
+        setRoute(found)
+        const routePosts = postsData.filter((p) => p.route?.id === id)
+        setPosts(routePosts)
+        setLoading(false)
+      } catch (e) {
+        console.error("RoutePage fetch error", e)
+        setError("Ошибка загрузки маршрута")
+        setLoading(false)
+      }
+    }
 
-  const weather = await fetchWeatherForRoute(points)
+    run()
+  }, [id])
 
-  const createdAtText = new Date(route.createdAt).toLocaleDateString(
-    "ru-RU",
-    {
+  const points = useMemo(
+    () => normalizePoints(route?.points ?? []),
+    [route?.points],
+  )
+
+  const center: LatLng | null = useMemo(() => {
+    if (!points.length) return null
+    return points[Math.floor(points.length / 2)]
+  }, [points])
+
+  // 2. погода
+  useEffect(() => {
+    if (!center) return
+
+    const fetchWeather = async () => {
+      try {
+        setLoadingWeather(true)
+        setWeather(null)
+
+        const res = await fetch(
+          `/api/weather?lat=${center.lat}&lng=${center.lng}`,
+        )
+        const data = await res.json()
+
+        if (!res.ok) {
+          console.error("RoutePage weather status", res.status, data)
+          return
+        }
+
+        setWeather(data)
+      } catch (e) {
+        console.error("RoutePage weather error", e)
+      } finally {
+        setLoadingWeather(false)
+      }
+    }
+
+    fetchWeather()
+  }, [center])
+
+  const createdAtText = useMemo(() => {
+    if (!route) return ""
+    return new Date(route.createdAt).toLocaleDateString("ru-RU", {
       day: "2-digit",
       month: "short",
       year: "numeric",
-    },
-  )
+    })
+  }, [route])
 
+  // 3. состояния загрузки / ошибки
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-foreground/70">Загружаем маршрут...</p>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (error || !route || !center) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center px-4">
+          <Card className="p-6 w-full max-w-md text-center space-y-3">
+            <p className="text-sm text-foreground/70">
+              {error || "Маршрут не найден"}
+            </p>
+            {id && (
+              <p className="text-xs text-foreground/50 break-all">
+                ID: <code>{id}</code>
+              </p>
+            )}
+            <Button asChild className="w-full" variant="secondary">
+              <Link href="/database">Вернуться к базе треков</Link>
+            </Button>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  // 4. нормальный рендер
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -212,7 +280,12 @@ export default async function RoutePage({
                 <h2 className="text-lg font-semibold mb-3">
                   Погода на маршруте
                 </h2>
-                {!weather && (
+                {loadingWeather && (
+                  <p className="text-sm text-foreground/70">
+                    Загружаем прогноз...
+                  </p>
+                )}
+                {!loadingWeather && !weather && (
                   <p className="text-sm text-foreground/70">
                     Не удалось получить прогноз погоды. Попробуйте позже.
                   </p>
@@ -262,10 +335,7 @@ export default async function RoutePage({
                 </ul>
               </Card>
 
-              <RouteDiscussionClient
-                routeId={route.id}
-                initialPosts={route.posts}
-              />
+              <RouteDiscussionClient routeId={route.id} initialPosts={posts} />
             </div>
           </div>
         </section>
