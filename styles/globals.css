@@ -123,7 +123,15 @@
     @apply bg-background text-foreground;
   }
 }
+
 .leaflet-attribution-flag {
   display: none !important;
 }
+
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important; /* меньше, чем у хедера */
+}
+
 

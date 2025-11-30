@@ -12,23 +12,87 @@ const RouteBuilderMap = dynamic(() => import("@/components/route-builder-map"), 
   ssr: false,
 })
 
-export default function BuilderPage() {
-  const [distance, setDistance] = useState(10)
-  const [difficulty, setDifficulty] = useState("medium")
-  const [terrainTags, setTerrainTags] = useState<string[]>([])
-  const [routeGenerated, setRouteGenerated] = useState(false)
-  const [routePoints, setRoutePoints] = useState<{ lat: number; lng: number }[]>([])
+type LatLng = { lat: number; lng: number }
 
+function computeDistanceKm(points: LatLng[]): number {
+  if (points.length < 2) return 0
 
-  const terrainOptions = ["Лес", "Вода", "Горы", "Город"]
+  const R = 6371 // радиус Земли в км
+  const toRad = (deg: number) => (deg * Math.PI) / 180
 
-  const toggleTerrain = (tag: string) => {
-    setTerrainTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    const p1 = points[i - 1]
+    const p2 = points[i]
+
+    const dLat = toRad(p2.lat - p1.lat)
+    const dLon = toRad(p2.lng - p1.lng)
+    const lat1 = toRad(p1.lat)
+    const lat2 = toRad(p2.lat)
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    total += R * c
   }
+  return total
+}
+
+
+export default function BuilderPage() {
+  const [routeGenerated, setRouteGenerated] = useState(false)
+  const [routePoints, setRoutePoints] = useState<LatLng[]>([])
+  const [distance, setDistanceKm] = useState(0)
+
+  const [mapCenter, setMapCenter] = useState<LatLng>({
+    lat: 61.78,
+    lng: 34.35,
+  })
+
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+
+  const handleRouteChange = (points: LatLng[]) => {
+    setRoutePoints(points)
+    setDistanceKm(computeDistanceKm(points))
+    setRouteGenerated(points.length > 1)
+  }
+
 
   const handleBuild = () => {
     setRouteGenerated(true)
   }
+
+  const handleSearchStartPoint = async () => {
+  if (!searchQuery.trim()) return
+
+  try {
+    setIsSearching(true)
+    setSearchError(null)
+
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(searchQuery.trim())}`)
+    const data = await res.json()
+
+    if (!data.results || data.results.length === 0) {
+      setSearchError("Ничего не найдено")
+      return
+    }
+
+    const first = data.results[0]
+    setMapCenter({ lat: first.lat, lng: first.lng })
+    // можно при желании подставить нормальное имя:
+    // setSearchQuery(first.displayName)
+  } catch (e) {
+    console.error(e)
+    setSearchError("Ошибка поиска")
+  } finally {
+    setIsSearching(false)
+  }
+}
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -59,106 +123,58 @@ export default function BuilderPage() {
                       <input
                         type="text"
                         placeholder="Введите название"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleSearchStartPoint()
+                          }
+                        }}
                         className="flex-1 px-4 py-2 bg-input rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                       />
-                      <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90">
-                        <MapPin size={20} />
+                      <button
+                        type="button"
+                        onClick={handleSearchStartPoint}
+                        disabled={isSearching}
+                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 disabled:opacity-60"
+                      >
+                        {isSearching ? (
+                          <span className="text-xs">...</span>
+                        ) : (
+                          <MapPin size={20} />
+                        )}
                       </button>
                     </div>
+                    {searchError && (
+                      <p className="mt-1 text-xs text-red-500">{searchError}</p>
+                    )}
                   </div>
-
-                  {/* Distance Slider */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium mb-2">Расстояние: {distance} км</label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="20"
-                      value={distance}
-                      onChange={(e) => setDistance(Number.parseInt(e.target.value))}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Difficulty */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium mb-3">Сложность</label>
-                    <div className="space-y-2">
-                      {[
-                        { id: "easy", label: "Лёгкий" },
-                        { id: "medium", label: "Средний" },
-                        { id: "hard", label: "Сложный" },
-                      ].map((opt) => (
-                        <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="difficulty"
-                            value={opt.id}
-                            checked={difficulty === opt.id}
-                            onChange={(e) => setDifficulty(e.target.value)}
-                          />
-                          <span>{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Terrain Tags */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium mb-3">Ландшафт</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {terrainOptions.map((terrain) => (
-                        <button
-                          key={terrain}
-                          onClick={() => toggleTerrain(terrain)}
-                          className={`px-3 py-2 rounded-lg font-medium transition-all ${
-                            terrainTags.includes(terrain) ? "bg-primary text-white" : "bg-muted text-foreground"
-                          }`}
-                        >
-                          {terrain}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button variant="primary" className="w-full" onClick={handleBuild}>
-                    Построить маршрут
-                  </Button>
                 </Card>
               </div>
 
               {/* Preview */}
               <div className="lg:col-span-2">
-                {routeGenerated ? (
                   <Card>
-                    <RouteBuilderMap onRouteChange={setRoutePoints} />
+                    <RouteBuilderMap center={mapCenter} onRouteChange={handleRouteChange} />
 
                     <h2 className="text-2xl font-semibold mb-4 mt-6">Новый маршрут</h2>
 
                     <div className="space-y-4 mb-6">
                       <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Расстояние (пока по слайдеру):</span>
-                        <span className="font-semibold">{distance} км</span>
-                      </div>
-
-                      <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Сложность:</span>
+                        <span className="text-foreground/70">Расстояние:</span>
                         <span className="font-semibold">
-                          {difficulty === "easy" && "Лёгкий"}
-                          {difficulty === "medium" && "Средний"}
-                          {difficulty === "hard" && "Сложный"}
+                          {distance > 0 ? `${distance.toFixed(1)} км` : "Маршрут ещё не построен"}
                         </span>
                       </div>
-
                       <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Ландшафт:</span>
+                        <span className="text-foreground/70">Время (пешком):</span>
                         <span className="font-semibold">
-                          {terrainTags.length > 0 ? terrainTags.join(", ") : "Не выбрано"}
+                          {distance > 0 ? `${(distance / 4).toFixed(1)} ч` : "—"}
                         </span>
                       </div>
-
                       <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Точек в маршруте:</span>
+                        <span className="text-foreground/70">Точек маршрута:</span>
                         <span className="font-semibold">{routePoints.length}</span>
                       </div>
                     </div>
@@ -172,18 +188,6 @@ export default function BuilderPage() {
                       </Button>
                     </div>
                   </Card>
-                ) : (
-                  <Card>
-                    <div className="aspect-video bg-secondary rounded-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <Ruler size={48} className="text-muted-foreground mx-auto mb-4 opacity-50" />
-                        <p className="text-foreground/70">
-                          Заполните параметры маршрута и нажмите &quot;Построить&quot;
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                )}
               </div>
             </div>
           </div>

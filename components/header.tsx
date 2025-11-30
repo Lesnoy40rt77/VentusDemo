@@ -14,7 +14,7 @@ export function Header() {
   ]
 
   return (
-    <header className="bg-white border-b border-border sticky top-0 z-50">
+    <header className="bg-white border-b border-border sticky top-0 z-1000">
       <div className="max-w-7xl mx-auto px-8 flex items-center justify-between h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
