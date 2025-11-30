@@ -18,10 +18,13 @@ export async function GET(req: NextRequest) {
     url.searchParams.set("q", q)
     url.searchParams.set("limit", "5")
 
+    const userAgent =
+    process.env.NOMINATIM_USER_AGENT ??
+    "VentusDemo/1.0 (fallback@example.com)"
+
     const upstream = await fetch(url.toString(), {
       headers: {
-        // 👇 СЮДА ВПИШИ СВОЙ email или домен, по правилам Nominatim
-        "User-Agent": "VentusDemo/1.0 (ventus@example.com)",
+        "User-Agent": userAgent,
         "Accept-Language": "ru",
       },
       cache: "no-store",
@@ -30,7 +33,7 @@ export async function GET(req: NextRequest) {
     const text = await upstream.text()
     console.log("[GEOCODE] upstream status =", upstream.status)
 
-    // Если вообще не JSON (HTML-ошибка, капча и т.п.)
+    
     let raw: any
     try {
       raw = JSON.parse(text)
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Часто при ошибках Nominatim шлёт объект, а не массив
+    
     if (!Array.isArray(raw)) {
       console.error("[GEOCODE] Nominatim returned non-array:", raw)
       return NextResponse.json(
