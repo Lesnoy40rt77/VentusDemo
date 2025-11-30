@@ -4,5 +4,6 @@ dist
 out
 .env
 *.log
-
+dev.db
+*.db-journal
 /lib/generated/prisma

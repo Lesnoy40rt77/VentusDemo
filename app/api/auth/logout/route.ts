@@ -3,5 +3,15 @@ import { destroySession } from "@/lib/auth"
 
 export async function POST() {
   await destroySession()
-  return NextResponse.json({ ok: true })
+
+  const res = NextResponse.json({ ok: true })
+
+  res.cookies.set("session_token", "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  })
+
+  return res
 }

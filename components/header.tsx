@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Menu, X } from "lucide-react"
+import { AuthStatus } from "./auth-status"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -39,12 +40,7 @@ export function Header() {
 
         {/* Desktop Login Button */}
         <div className="hidden md:flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-opacity-90 transition-all"
-          >
-            Войти
-          </Link>
+          <AuthStatus />
         </div>
 
         {/* Mobile Menu Button */}
@@ -66,12 +62,9 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/dashboard"
-              className="w-full px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-opacity-90 transition-all mt-2 text-center"
-            >
-              Войти
-            </Link>
+            <div className="mt-4 border-t border-border pt-4">
+              <AuthStatus />
+            </div>
           </div>
         </nav>
       )}

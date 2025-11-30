@@ -30,15 +30,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    await createSession(user.id)
+    const { token, expiresAt } = await createSession(user.id)
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       id: user.id,
       email: user.email,
       name: user.name,
     })
+
+    res.cookies.set("session_token", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      expires: expiresAt,
+    })
+
+    return res
   } catch (e) {
-    console.error(e)
+    console.error("LOGIN error:", e)
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 },

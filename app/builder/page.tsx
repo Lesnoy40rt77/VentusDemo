@@ -17,7 +17,7 @@ type LatLng = { lat: number; lng: number }
 function computeDistanceKm(points: LatLng[]): number {
   if (points.length < 2) return 0
 
-  const R = 6371 // радиус Земли в км
+  const R = 6371 // Радиус Земли в км
   const toRad = (deg: number) => (deg * Math.PI) / 180
 
   let total = 0
@@ -37,14 +37,14 @@ function computeDistanceKm(points: LatLng[]): number {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     total += R * c
   }
+
   return total
 }
-
 
 export default function BuilderPage() {
   const [routeGenerated, setRouteGenerated] = useState(false)
   const [routePoints, setRoutePoints] = useState<LatLng[]>([])
-  const [distance, setDistanceKm] = useState(0)
+  const [distanceKm, setDistanceKm] = useState(0)
 
   const [mapCenter, setMapCenter] = useState<LatLng>({
     lat: 61.78,
@@ -55,55 +55,161 @@ export default function BuilderPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
 
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+
+  const [weather, setWeather] = useState<any | null>(null)
+  const [loadingWeather, setLoadingWeather] = useState(false)
+
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
   const handleRouteChange = (points: LatLng[]) => {
     setRoutePoints(points)
-    setDistanceKm(computeDistanceKm(points))
+
+    const d = computeDistanceKm(points)
+    setDistanceKm(d)
     setRouteGenerated(points.length > 1)
+
+    if (points.length > 1) {
+      void fetchWeather(points)
+    } else {
+      setWeather(null)
+    }
   }
 
+  const fetchWeather = async (points: LatLng[]) => {
+    if (points.length < 2) return
+    const mid = points[Math.floor(points.length / 2)]
 
-  const handleBuild = () => {
-    setRouteGenerated(true)
+    try {
+      setLoadingWeather(true)
+      setWeather(null)
+
+      const res = await fetch(
+        `/api/weather?lat=${mid.lat}&lng=${mid.lng}`,
+      )
+      const data = await res.json()
+
+      if (!res.ok) {
+        console.error("Weather error", data)
+        return
+      }
+
+      setWeather(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingWeather(false)
+    }
   }
 
   const handleSearchStartPoint = async () => {
-  if (!searchQuery.trim()) return
+    if (!searchQuery.trim()) return
 
-  try {
-    setIsSearching(true)
-    setSearchError(null)
+    try {
+      setIsSearching(true)
+      setSearchError(null)
 
-    const res = await fetch(`/api/geocode?q=${encodeURIComponent(searchQuery.trim())}`)
-    const data = await res.json()
+      const res = await fetch(
+        `/api/geocode?q=${encodeURIComponent(searchQuery.trim())}`,
+      )
 
-    if (!data.results || data.results.length === 0) {
-      setSearchError("Ничего не найдено")
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("Geocode HTTP error:", res.status, text.slice(0, 200))
+        setSearchError("Ошибка поиска")
+        return
+      }
+
+      const data = (await res.json()) as {
+        results?: { displayName: string; lat: number; lng: number }[]
+        error?: string
+      }
+
+      if (data.error) {
+        console.error("Geocode logical error:", data.error)
+        setSearchError("Ошибка поиска")
+        return
+      }
+
+      if (!data.results || data.results.length === 0) {
+        setSearchError("Ничего не найдено")
+        return
+      }
+
+      const first = data.results[0]
+      setMapCenter({ lat: first.lat, lng: first.lng })
+    } catch (e) {
+      console.error("Geocode fetch error:", e)
+      setSearchError("Ошибка поиска")
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleSaveRoute = async () => {
+    setSaveError(null)
+
+    if (!routeGenerated || routePoints.length < 2) {
+      setSaveError("Сначала постройте маршрут на карте")
       return
     }
 
-    const first = data.results[0]
-    setMapCenter({ lat: first.lat, lng: first.lng })
-    // можно при желании подставить нормальное имя:
-    // setSearchQuery(first.displayName)
-  } catch (e) {
-    console.error(e)
-    setSearchError("Ошибка поиска")
-  } finally {
-    setIsSearching(false)
-  }
-}
+    if (!title.trim()) {
+      setSaveError("Добавьте название маршрута")
+      return
+    }
 
+    try {
+      setSaving(true)
+
+      const res = await fetch("/api/routes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim() || null,
+          points: routePoints,
+          distanceKm,
+          durationHrs: distanceKm ? distanceKm / 4 : null,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.status === 401) {
+        window.location.href = `/auth?next=/builder`
+        return
+      }
+
+      if (!res.ok) {
+        setSaveError(data.error || "Не удалось сохранить маршрут")
+        return
+      }
+
+      // Успех: можно отправить в базу треков или на страницу маршрута
+      window.location.href = "/database"
+    } catch (e) {
+      console.error(e)
+      setSaveError("Ошибка сохранения")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       <main className="flex-1">
-        {/* Page Header */}
+        {/* Hero */}
         <section className="bg-secondary py-12 border-b border-border">
           <div className="max-w-7xl mx-auto px-8">
             <h1 className="text-4xl font-semibold mb-2">Построить маршрут</h1>
-            <p className="text-foreground/70">Создайте свой идеальный маршрут</p>
+            <p className="text-foreground/70">
+              Отметьте точки на карте, получите прогноз погоды и сохраните маршрут в базе Ventus.
+            </p>
           </div>
         </section>
 
@@ -118,7 +224,9 @@ export default function BuilderPage() {
 
                   {/* Start Point */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium mb-2">Начальная точка</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Начальная точка
+                    </label>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -128,10 +236,10 @@ export default function BuilderPage() {
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault()
-                            handleSearchStartPoint()
+                            void handleSearchStartPoint()
                           }
                         }}
-                        className="flex-1 px-4 py-2 bg-input rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="flex-1 px-4 py-2 bg-input rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                       />
                       <button
                         type="button"
@@ -147,47 +255,153 @@ export default function BuilderPage() {
                       </button>
                     </div>
                     {searchError && (
-                      <p className="mt-1 text-xs text-red-500">{searchError}</p>
+                      <p className="mt-1 text-xs text-red-500">
+                        {searchError}
+                      </p>
                     )}
                   </div>
+
+                  {/* Название и описание */}
+                  <div className="mb-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Название маршрута
+                      </label>
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        placeholder="Например, Лесной маршрут у озера"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Краткое описание
+                      </label>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[80px]"
+                        placeholder="Что ждёт участников на этом маршруте?"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Информация о маршруте */}
+                  <div className="space-y-3 mb-6">
+                    <div className="flex justify-between items-center pb-2 border-b border-border">
+                      <span className="text-foreground/70">Дистанция:</span>
+                      <span className="font-semibold">
+                        {distanceKm > 0 ? `${distanceKm.toFixed(1)} км` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-border">
+                      <span className="text-foreground/70">Время (пешком, 4 км/ч):</span>
+                      <span className="font-semibold">
+                        {distanceKm > 0 ? `${(distanceKm / 4).toFixed(1)} ч` : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-border">
+                      <span className="text-foreground/70">Точек маршрута:</span>
+                      <span className="font-semibold">{routePoints.length}</span>
+                    </div>
+                  </div>
+
+                  {/* Погода */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-2">Погода на маршруте</h3>
+                    {loadingWeather && (
+                      <p className="text-sm text-foreground/70">
+                        Загружаем прогноз...
+                      </p>
+                    )}
+                    {!loadingWeather && !weather && (
+                      <p className="text-sm text-foreground/70">
+                        Постройте маршрут, чтобы увидеть прогноз.
+                      </p>
+                    )}
+                    {weather && (
+                      <div className="text-sm text-foreground/80 space-y-1">
+                        <p>
+                          Сегодня:{" "}
+                          {weather.daily?.temperature_2m_max?.[0]}° /{" "}
+                          {weather.daily?.temperature_2m_min?.[0]}°C
+                        </p>
+                        <p>
+                          Осадки за день:{" "}
+                          {weather.daily?.precipitation_sum?.[0]} мм
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Чеклист экипировки */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-2">Что взять с собой</h3>
+                    <ul className="text-sm text-foreground/80 list-disc pl-5 space-y-1">
+                      <li>Запас воды и перекус</li>
+                      <li>Тёплая одежда и дождевик</li>
+                      <li>Заряженный телефон и пауэрбанк</li>
+                      <li>Аптечка и средства от насекомых</li>
+                    </ul>
+                  </div>
+
+                  {/* Безопасность */}
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                      <span className="text-amber-500">⚠</span> Безопасность
+                    </h3>
+                    <ul className="text-sm text-foreground/80 list-disc pl-5 space-y-1">
+                      <li>Сообщите близким маршрут и время возвращения.</li>
+                      <li>Проверьте связь и заряд перед выходом.</li>
+                      <li>Не уходите с тропы и следите за прогнозом.</li>
+                    </ul>
+                  </div>
+
+                  {saveError && (
+                    <p className="text-xs text-red-500 mb-2">{saveError}</p>
+                  )}
+
+                  <Button
+                    type="button"
+                    onClick={handleSaveRoute}
+                    disabled={saving || !routeGenerated}
+                    className="w-full"
+                  >
+                    {saving ? "Сохраняем..." : "Сохранить маршрут"}
+                  </Button>
                 </Card>
               </div>
 
               {/* Preview */}
               <div className="lg:col-span-2">
-                  <Card>
-                    <RouteBuilderMap center={mapCenter} onRouteChange={handleRouteChange} />
-
-                    <h2 className="text-2xl font-semibold mb-4 mt-6">Новый маршрут</h2>
-
-                    <div className="space-y-4 mb-6">
-                      <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Расстояние:</span>
-                        <span className="font-semibold">
-                          {distance > 0 ? `${distance.toFixed(1)} км` : "Маршрут ещё не построен"}
-                        </span>
+                <Card>
+                  <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border mb-4">
+                    <RouteBuilderMap
+                      center={mapCenter}
+                      onRouteChange={handleRouteChange}
+                    />
+                  </div>
+                  <div className="px-2 pb-2">
+                    {routeGenerated ? (
+                      <p className="text-sm text-foreground/70">
+                        Маршрут построен. Проверьте параметры слева и сохраните его в базу Ventus.
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-3 text-sm text-foreground/70">
+                        <Ruler
+                          size={24}
+                          className="text-muted-foreground opacity-70"
+                        />
+                        <p>
+                          Кликните по карте, чтобы добавить точки маршрута. После этого появится расчёт дистанции и прогноз погоды.
+                        </p>
                       </div>
-                      <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Время (пешком):</span>
-                        <span className="font-semibold">
-                          {distance > 0 ? `${(distance / 4).toFixed(1)} ч` : "—"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Точек маршрута:</span>
-                        <span className="font-semibold">{routePoints.length}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <Button variant="primary" className="w-full">
-                        Начать маршрут
-                      </Button>
-                      <Button variant="secondary" className="w-full">
-                        Сохранить маршрут
-                      </Button>
-                    </div>
-                  </Card>
+                    )}
+                  </div>
+                </Card>
               </div>
             </div>
           </div>

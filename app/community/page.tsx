@@ -4,133 +4,206 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/card"
 import { Button } from "@/components/button"
-import { Heart, MessageCircle, Share2 } from "lucide-react"
+import { Heart, MessageCircle } from "lucide-react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+
+type Post = {
+  id: string
+  title: string
+  content: string
+  createdAt: string
+  author: { id: string; name: string | null; email: string }
+  route?: { id: string; title: string } | null
+  comments: { id: string }[]
+}
 
 export default function CommunityPage() {
-  const posts = [
-    {
-      id: 1,
-      author: "Анна М.",
-      avatar: "👤",
-      content: "Только закончила маршрут в Карелии! Невероятные виды и погода была идеальной.",
-      tags: ["Карелия", "Летний тур"],
-      image: true,
-      likes: 24,
-      comments: 5,
-    },
-    {
-      id: 2,
-      author: "Иван П.",
-      avatar: "👤",
-      content: "Совет: всегда берите с собой больше воды, чем думаете. Спасло мне жизнь на вчерашнем маршруте!",
-      tags: ["Советы", "Безопасность"],
-      image: false,
-      likes: 42,
-      comments: 12,
-    },
-    {
-      id: 3,
-      author: "Мария Л.",
-      avatar: "👤",
-      content: "Нашла новый скрытый маршрут! Идеально для начинающих, красивый лес и речка.",
-      tags: ["Новый маршрут", "Лёгкий"],
-      image: true,
-      likes: 18,
-      comments: 8,
-    },
-  ]
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loading, setLoading] = useState(true)
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const recommendedRoutes = [
-    { name: "Озеро в горах", users: "342 прошли" },
-    { name: "Лесной водопад", users: "156 прошли" },
-    { name: "Вершина Кивакка", users: "89 прошли" },
-  ]
+  const loadPosts = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/posts", { cache: "no-store" })
+      const data = await res.json()
+      setPosts(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadPosts()
+  }, [])
+
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (!title.trim() || !content.trim()) {
+      setError("Заполните заголовок и текст")
+      return
+    }
+
+    try {
+      setCreating(true)
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          content: content.trim(),
+          routeId: null, // позже можно привязать к конкретному маршруту
+        }),
+      })
+      const data = await res.json()
+      if (res.status === 401) {
+        window.location.href = "/auth?next=/community"
+        return
+      }
+      if (!res.ok) {
+        setError(data.error || "Не удалось создать пост")
+        return
+      }
+      setTitle("")
+      setContent("")
+      await loadPosts()
+    } catch (e) {
+      console.error(e)
+      setError("Ошибка при создании поста")
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       <main className="flex-1">
-        {/* Page Header */}
         <section className="bg-secondary py-12 border-b border-border">
           <div className="max-w-7xl mx-auto px-8">
             <h1 className="text-4xl font-semibold mb-2">Сообщество</h1>
-            <p className="text-foreground/70">Делитесь опытом с другими путешественниками</p>
+            <p className="text-foreground/70">
+              Обсуждайте маршруты, делитесь впечатлениями и находите новые идеи.
+            </p>
           </div>
         </section>
 
-        {/* Content */}
-        <section className="py-12">
-          <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Feed */}
-            <div className="lg:col-span-2 space-y-6">
+        <section className="py-10">
+          <div className="max-w-4xl mx-auto px-8 space-y-8">
+            {/* форма нового поста */}
+            <Card className="p-5">
+              <form onSubmit={handleCreatePost} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Заголовок
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    placeholder="Например, Как прошёл наш первый поход"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Текст
+                  </label>
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[100px]"
+                    placeholder="Расскажите о маршруте, погоде, трудностях и советах."
+                  />
+                </div>
+                {error && (
+                  <p className="text-xs text-red-500">{error}</p>
+                )}
+                <Button type="submit" disabled={creating} className="w-full">
+                  {creating ? "Публикуем..." : "Опубликовать пост"}
+                </Button>
+              </form>
+            </Card>
+
+            {/* список постов */}
+            {loading && (
+              <p className="text-sm text-foreground/70">
+                Загружаем посты...
+              </p>
+            )}
+
+            {!loading && posts.length === 0 && (
+              <p className="text-sm text-foreground/70">
+                Пока постов нет. Станьте первым, кто поделится опытом!
+              </p>
+            )}
+
+            <div className="space-y-4">
               {posts.map((post) => (
-                <Card key={post.id}>
-                  {/* Post Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-lg">
-                        {post.avatar}
+                <Card key={post.id} className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm">
+                      {post.author.name?.[0]?.toUpperCase() ||
+                        post.author.email[0]?.toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <div>
+                          <h2 className="font-semibold text-sm">
+                            {post.author.name || post.author.email}
+                          </h2>
+                          <p className="text-xs text-foreground/60">
+                            {new Date(post.createdAt).toLocaleString("ru-RU", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-semibold">{post.author}</h4>
-                        <p className="text-sm text-foreground/70">2 часа назад</p>
+                      <h3 className="font-semibold text-base mb-1">
+                        {post.title}
+                      </h3>
+                      <p className="text-sm text-foreground/80 mb-3">
+                        {post.content}
+                      </p>
+                      {post.route && (
+                        <Link
+                          href={`/route/${post.route.id}`}
+                          className="text-xs text-primary underline"
+                        >
+                          Перейти к маршруту: {post.route.title}
+                        </Link>
+                      )}
+                      <div className="mt-3 flex items-center gap-4 text-xs text-foreground/60">
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 hover:text-foreground"
+                        >
+                          <Heart size={14} />
+                          Нравится
+                        </button>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 hover:text-foreground"
+                        >
+                          <MessageCircle size={14} />
+                          Комментарии ({post.comments.length})
+                        </button>
                       </div>
                     </div>
-                    <button className="text-foreground/50 hover:text-foreground transition">⋯</button>
-                  </div>
-
-                  {/* Post Content */}
-                  <p className="text-foreground mb-4">{post.content}</p>
-
-                  {/* Image Placeholder */}
-                  {post.image && (
-                    <div className="aspect-video bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg mb-4" />
-                  )}
-
-                  {/* Tags */}
-                  <div className="flex gap-2 mb-4 flex-wrap">
-                    {post.tags.map((tag) => (
-                      <span key={tag} className="px-3 py-1 bg-secondary text-primary text-sm rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-border">
-                    <button className="flex items-center gap-2 text-foreground/60 hover:text-primary transition">
-                      <Heart size={18} />
-                      <span className="text-sm">{post.likes}</span>
-                    </button>
-                    <button className="flex items-center gap-2 text-foreground/60 hover:text-primary transition">
-                      <MessageCircle size={18} />
-                      <span className="text-sm">{post.comments}</span>
-                    </button>
-                    <button className="flex items-center gap-2 text-foreground/60 hover:text-primary transition">
-                      <Share2 size={18} />
-                    </button>
                   </div>
                 </Card>
               ))}
-            </div>
-
-            {/* Sidebar */}
-            <div>
-              <Card>
-                <h3 className="text-xl font-semibold mb-6">Рекомендуемые маршруты</h3>
-                <div className="space-y-4">
-                  {recommendedRoutes.map((route, idx) => (
-                    <div key={idx} className="pb-4 border-b border-border last:border-b-0">
-                      <h4 className="font-semibold text-sm mb-1">{route.name}</h4>
-                      <p className="text-xs text-foreground/60 mb-2">{route.users}</p>
-                      <Button variant="outline" className="w-full text-sm py-1 bg-transparent">
-                        Посмотреть
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </Card>
             </div>
           </div>
         </section>

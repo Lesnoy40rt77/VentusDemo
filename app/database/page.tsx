@@ -4,113 +4,113 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/card"
 import { Button } from "@/components/button"
-import { useState } from "react"
-import { MapPin, Sliders } from "lucide-react"
+import { useEffect, useState } from "react"
+import { MapPin } from "lucide-react"
+import Link from "next/link"
+
+type RouteItem = {
+  id: string
+  title: string
+  description: string | null
+  distanceKm: number
+  durationHrs: number | null
+  creator: { name: string | null; email: string }
+  createdAt: string
+}
 
 export default function DatabasePage() {
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null)
-  const [selectedTerrain, setSelectedTerrain] = useState<string[]>([])
+  const [routes, setRoutes] = useState<RouteItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const routes = [
-    { name: "Озеро в горах", distance: "12 км", difficulty: "medium", terrain: "Горы", duration: "4-5 ч" },
-    { name: "Лесной водопад", distance: "8 км", difficulty: "easy", terrain: "Лес", duration: "2-3 ч" },
-    { name: "Вершина Кивакка", distance: "18 км", difficulty: "hard", terrain: "Горы", duration: "6-7 ч" },
-    { name: "Лесная тропа к озеру", distance: "15 км", difficulty: "easy", terrain: "Вода", duration: "5-6 ч" },
-    { name: "Поход по вершинам Карелии", distance: "23 км", difficulty: "hard", terrain: "Горы", duration: "3-4 ч" },
-    { name: "Городская прогулка", distance: "5 км", difficulty: "easy", terrain: "Город", duration: "1-2 ч" },
-  ]
-
-  const difficultyLabels = { easy: "Лёгкий", medium: "Средний", hard: "Сложный" }
-  const terrainOptions = ["Горы", "Лес", "Вода", "Город"]
-
-  const filteredRoutes = routes.filter((route) => {
-    const difficultyMatch = !selectedDifficulty || route.difficulty === selectedDifficulty
-    const terrainMatch = selectedTerrain.length === 0 || selectedTerrain.includes(route.terrain)
-    return difficultyMatch && terrainMatch
-  })
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch("/api/routes", { cache: "no-store" })
+        const data = await res.json()
+        setRoutes(data)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    run()
+  }, [])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       <main className="flex-1">
-        {/* Page Header */}
         <section className="bg-secondary py-12 border-b border-border">
           <div className="max-w-7xl mx-auto px-8">
             <h1 className="text-4xl font-semibold mb-2">База треков</h1>
-            <p className="text-foreground/70">Найдите идеальный маршрут для вашего следующего путешествия</p>
+            <p className="text-foreground/70">
+              Здесь появляются маршруты, которые создают участники Ventus.
+            </p>
           </div>
         </section>
 
-        {/* Content */}
         <section className="py-12">
-          <div className="max-w-7xl mx-auto px-8">
-            {/* Filters */}
-            <div className="mb-8 flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Sliders size={20} className="text-muted-foreground" />
-                <span className="font-medium">Фильтры:</span>
-              </div>
+          <div className="max-w-7xl mx-auto px-8 space-y-6">
+            {loading && (
+              <p className="text-sm text-foreground/70">
+                Загружаем маршруты...
+              </p>
+            )}
 
-              <select
-                value={selectedDifficulty || ""}
-                onChange={(e) => setSelectedDifficulty(e.target.value || null)}
-                className="px-4 py-2 bg-input rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Все сложности</option>
-                <option value="easy">Лёгкий</option>
-                <option value="medium">Средний</option>
-                <option value="hard">Сложный</option>
-              </select>
+            {!loading && routes.length === 0 && (
+              <p className="text-sm text-foreground/70">
+                Пока ещё нет ни одного маршрута. Создайте свой на странице{" "}
+                <Link href="/builder" className="text-primary underline">
+                  «Построить маршрут»
+                </Link>
+                .
+              </p>
+            )}
 
-              <div className="flex gap-2">
-                {terrainOptions.map((terrain) => (
-                  <button
-                    key={terrain}
-                    onClick={() =>
-                      setSelectedTerrain((prev) =>
-                        prev.includes(terrain) ? prev.filter((t) => t !== terrain) : [...prev, terrain],
-                      )
-                    }
-                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                      selectedTerrain.includes(terrain) ? "bg-primary text-white" : "bg-muted text-foreground"
-                    }`}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {routes.map((route) => (
+                <Card key={route.id} className="p-5 flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold mb-2">
+                      {route.title}
+                    </h2>
+                    <p className="text-sm text-foreground/70 mb-4 line-clamp-3">
+                      {route.description || "Без описания"}
+                    </p>
+
+                    <div className="space-y-1 text-sm text-foreground/80 mb-4">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={16} className="text-primary" />
+                        <span>
+                          Дистанция: {route.distanceKm.toFixed(1)} км
+                        </span>
+                      </div>
+                      <div>
+                        Время:{" "}
+                        {route.durationHrs
+                          ? `${route.durationHrs.toFixed(1)} ч`
+                          : "—"}
+                      </div>
+                      <div className="text-xs text-foreground/60">
+                        Автор: {route.creator.name || route.creator.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="mt-2 w-full"
                   >
-                    {terrain}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Routes Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {filteredRoutes.map((route, idx) => (
-                <Card key={idx}>
-                  <div className="aspect-video bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg mb-4 flex items-center justify-center">
-                    <MapPin size={48} className="text-muted-foreground opacity-50" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">{route.name}</h3>
-                  <div className="space-y-2 text-sm text-foreground/70 mb-4">
-                    <div>Расстояние: {route.distance}</div>
-                    <div>Время: {route.duration}</div>
-                    <div>Сложность: {difficultyLabels[route.difficulty as keyof typeof difficultyLabels]}</div>
-                  </div>
-                  <div className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium mb-4">
-                    {route.terrain}
-                  </div>
-                  <Button variant="outline" className="w-full bg-transparent">
-                    Открыть
+                    <Link href={`/route/${route.id}`}>
+                      Открыть маршрут
+                    </Link>
                   </Button>
                 </Card>
               ))}
             </div>
-
-            {filteredRoutes.length === 0 && (
-              <Card className="text-center py-12">
-                <MapPin size={48} className="text-muted-foreground opacity-30 mx-auto mb-4" />
-                <p className="text-foreground/70">Маршруты не найдены. Попробуйте изменить фильтры</p>
-              </Card>
-            )}
           </div>
         </section>
       </main>

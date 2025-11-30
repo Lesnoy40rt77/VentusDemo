@@ -17,27 +17,26 @@ export async function createSession(userId: string) {
     },
   })
 
-  const cookieStore = cookies()
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_TTL_HOURS * 60 * 60,
-  })
+  // здесь мы БОЛЬШЕ НЕ трогаем cookies()
+  // просто возвращаем токен и срок жизни, а куку поставим в роуте
+  return { token, expiresAt }
 }
 
 export async function destroySession() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+
   if (token) {
-    await prisma.session.deleteMany({ where: { token } })
-    cookieStore.set(SESSION_COOKIE_NAME, "", { maxAge: 0, path: "/" })
+    await prisma.session.deleteMany({
+      where: { token },
+    })
   }
 }
 
 export async function getCurrentUser() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+
   if (!token) return null
 
   const session = await prisma.session.findFirst({
