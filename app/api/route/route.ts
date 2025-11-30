@@ -1,4 +1,3 @@
-// app/api/route/route.ts
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
@@ -27,7 +26,7 @@ export async function POST(req: NextRequest) {
     const orsProfile = profile ?? "foot-hiking"
 
     const res = await fetch(
-        `https://api.openrouteservice.org/v2/directions/${orsProfile}/geojson`, // вот так ✅
+        `https://api.openrouteservice.org/v2/directions/${orsProfile}/geojson`,
         {
             method: "POST",
             headers: {

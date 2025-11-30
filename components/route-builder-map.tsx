@@ -99,7 +99,10 @@ export default function RouteBuilderMap({ center, onRouteChange }: RouteBuilderM
           className="w-full h-full"
           attributionControl={false}
         >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          
+          <TileLayer
+            url={`https://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=${process.env.NEXT_PUBLIC_THUNDERFOREST_KEY}`}
+          />
 
           <MapCenterUpdater center={center} />
           <ClickHandler onClick={handleMapClick} />

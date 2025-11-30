@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -32,7 +33,7 @@ model Route {
   id          String   @id @default(cuid())
   title       String
   description String?
-  points      Json     // [{ lat, lng }, ...]
+  points      Json
   distanceKm  Float
   durationHrs Float?
   createdAt   DateTime @default(now())
