@@ -4,9 +4,11 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/button"
 import { Card } from "@/components/card"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MapPin, Ruler } from "lucide-react"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
+
 
 const RouteBuilderMap = dynamic(() => import("@/components/route-builder-map"), {
   ssr: false,
@@ -42,6 +44,55 @@ function computeDistanceKm(points: LatLng[]): number {
 }
 
 export default function BuilderPage() {
+  const router = useRouter()
+  const [authChecked, setAuthChecked] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" })
+        const data = await res.json()
+
+        if (!res.ok || !data.user) {
+          if (!cancelled) {
+            router.push("/auth?next=/builder")
+          }
+          return
+        }
+
+        if (!cancelled) {
+          setAuthChecked(true)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          router.push("/auth?next=/builder")
+        }
+      }
+    }
+
+    checkAuth()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-foreground/70">
+            Проверяем авторизацию...
+          </p>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   const [routeGenerated, setRouteGenerated] = useState(false)
   const [routePoints, setRoutePoints] = useState<LatLng[]>([])
   const [distanceKm, setDistanceKm] = useState(0)
@@ -188,7 +239,6 @@ export default function BuilderPage() {
         return
       }
 
-      // Успех: можно отправить в базу треков или на страницу маршрута
       window.location.href = "/database"
     } catch (e) {
       console.error(e)

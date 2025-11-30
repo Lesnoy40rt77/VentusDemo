@@ -11,6 +11,7 @@ import {
 } from "react-leaflet"
 import type { LeafletMouseEvent } from "leaflet"
 import "leaflet/dist/leaflet.css"
+import { MAP_TILE_URL } from "@/lib/mapConfig"
 
 type LatLng = { lat: number; lng: number }
 
@@ -101,7 +102,7 @@ export default function RouteBuilderMap({ center, onRouteChange }: RouteBuilderM
         >
           
           <TileLayer
-            url={`https://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=${process.env.NEXT_PUBLIC_THUNDERFOREST_KEY}`}
+            url={MAP_TILE_URL}
           />
 
           <MapCenterUpdater center={center} />

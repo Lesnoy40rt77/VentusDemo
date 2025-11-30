@@ -17,8 +17,6 @@ export async function createSession(userId: string) {
     },
   })
 
-  // здесь мы БОЛЬШЕ НЕ трогаем cookies()
-  // просто возвращаем токен и срок жизни, а куку поставим в роуте
   return { token, expiresAt }
 }
 

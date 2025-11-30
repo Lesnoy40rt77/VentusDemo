@@ -52,11 +52,6 @@ export function Footer() {
                   Сообщество
                 </Link>
               </li>
-              <li>
-                <Link href="/safety" className="hover:opacity-100 transition-opacity">
-                  Безопасность
-                </Link>
-              </li>
             </ul>
           </div>
 

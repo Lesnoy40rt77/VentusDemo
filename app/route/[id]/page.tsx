@@ -73,7 +73,6 @@ export default function RoutePage() {
   const [weather, setWeather] = useState<any | null>(null)
   const [loadingWeather, setLoadingWeather] = useState(false)
 
-  // 1. грузим маршрут и посты
   useEffect(() => {
     if (!id) {
       setError("Не удалось определить ID маршрута из URL")
@@ -139,7 +138,6 @@ export default function RoutePage() {
     return points[Math.floor(points.length / 2)]
   }, [points])
 
-  // 2. погода
   useEffect(() => {
     if (!center) return
 
@@ -178,7 +176,6 @@ export default function RoutePage() {
     })
   }, [route])
 
-  // 3. состояния загрузки / ошибки
 
   if (loading) {
     return (
@@ -216,7 +213,6 @@ export default function RoutePage() {
     )
   }
 
-  // 4. нормальный рендер
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />

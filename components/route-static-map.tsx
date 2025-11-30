@@ -3,6 +3,7 @@
 import { MapContainer, TileLayer, Polyline, CircleMarker } from "react-leaflet"
 import type { LatLngExpression } from "leaflet"
 import "leaflet/dist/leaflet.css"
+import { MAP_TILE_URL } from "@/lib/mapConfig"
 
 type LatLng = { lat: number; lng: number }
 
@@ -24,7 +25,7 @@ export default function RouteStaticMap({ points, center }: RouteStaticMapProps) 
         className="w-full h-full"
         attributionControl={false}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <TileLayer url={MAP_TILE_URL} />
 
         {points.map((p, index) => (
           <CircleMarker

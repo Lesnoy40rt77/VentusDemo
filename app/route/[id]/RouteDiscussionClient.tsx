@@ -70,7 +70,6 @@ export default function RouteDiscussionClient({
         return
       }
 
-      // добавим новый пост в начало списка
       const newPost: Post = {
         id: data.id,
         title: data.title,

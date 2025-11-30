@@ -58,7 +58,6 @@ export default function DashboardPage() {
 
   const [error, setError] = useState<string | null>(null)
 
-  // 1. Тянем текущего пользователя
   useEffect(() => {
     const run = async () => {
       try {
@@ -68,7 +67,6 @@ export default function DashboardPage() {
           console.error("Dashboard /api/auth/me status", res.status)
           setUser(null)
           setLoadingUser(false)
-          // не авторизован → отправляем на /auth
           router.push("/auth?next=/dashboard")
           return
         }
@@ -94,7 +92,6 @@ export default function DashboardPage() {
     run()
   }, [router])
 
-  // 2. Когда знаем user.id — тянем маршруты и посты
   useEffect(() => {
     if (!user?.id) return
 
@@ -135,7 +132,6 @@ export default function DashboardPage() {
     load()
   }, [user?.id])
 
-  // 3. Фильтруем "мои" данные
   const myRoutes = useMemo(
     () =>
       user
@@ -177,7 +173,6 @@ export default function DashboardPage() {
     )
   }
 
-  // пока редирект не сработал
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex flex-col">

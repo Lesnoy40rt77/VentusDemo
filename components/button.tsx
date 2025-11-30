@@ -3,14 +3,14 @@ import type React from "react"
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline"
   children: React.ReactNode
-  asChild?: boolean // 👈 добавили, чтобы React не ругался
+  asChild?: boolean
 }
 
 export function Button({
   variant = "primary",
   children,
   className = "",
-  asChild,        // 👈 вытаскиваем, чтобы не улетел в DOM
+  asChild,
   ...props
 }: ButtonProps) {
   const baseStyles =
@@ -26,7 +26,7 @@ export function Button({
   return (
     <button
       className={`${baseStyles} ${variantStyles[variant]} ${className}`}
-      {...props} // 👈 здесь asChild уже НЕТ
+      {...props}
     >
       {children}
     </button>
