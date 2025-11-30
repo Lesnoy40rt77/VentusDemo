@@ -6,12 +6,19 @@ import { Button } from "@/components/button"
 import { Card } from "@/components/card"
 import { useState } from "react"
 import { MapPin, Ruler } from "lucide-react"
+import dynamic from "next/dynamic"
+
+const RouteBuilderMap = dynamic(() => import("@/components/route-builder-map"), {
+  ssr: false,
+})
 
 export default function BuilderPage() {
   const [distance, setDistance] = useState(10)
   const [difficulty, setDifficulty] = useState("medium")
   const [terrainTags, setTerrainTags] = useState<string[]>([])
   const [routeGenerated, setRouteGenerated] = useState(false)
+  const [routePoints, setRoutePoints] = useState<{ lat: number; lng: number }[]>([])
+
 
   const terrainOptions = ["Лес", "Вода", "Горы", "Город"]
 
@@ -124,37 +131,36 @@ export default function BuilderPage() {
               <div className="lg:col-span-2">
                 {routeGenerated ? (
                   <Card>
-                    <div className="aspect-video bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg mb-6 flex items-center justify-center">
-                      <MapPin size={64} className="text-muted-foreground opacity-30" />
-                    </div>
+                    <RouteBuilderMap onRouteChange={setRoutePoints} />
 
-                    <h2 className="text-2xl font-semibold mb-4">Новый маршрут</h2>
+                    <h2 className="text-2xl font-semibold mb-4 mt-6">Новый маршрут</h2>
 
                     <div className="space-y-4 mb-6">
                       <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Расстояние:</span>
+                        <span className="text-foreground/70">Расстояние (пока по слайдеру):</span>
                         <span className="font-semibold">{distance} км</span>
                       </div>
-                      <div className="flex justify-between items-center pb-4 border-b border-border">
-                        <span className="text-foreground/70">Время:</span>
-                        <span className="font-semibold">{Math.round((distance / 4) * 10) / 10} ч</span>
-                      </div>
+
                       <div className="flex justify-between items-center pb-4 border-b border-border">
                         <span className="text-foreground/70">Сложность:</span>
-                        <span className="font-semibold capitalize">{difficulty}</span>
+                        <span className="font-semibold">
+                          {difficulty === "easy" && "Лёгкий"}
+                          {difficulty === "medium" && "Средний"}
+                          {difficulty === "hard" && "Сложный"}
+                        </span>
                       </div>
-                      {terrainTags.length > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-foreground/70">Ландшафт:</span>
-                          <div className="flex gap-2 flex-wrap justify-end">
-                            {terrainTags.map((tag) => (
-                              <span key={tag} className="px-2 py-1 bg-primary/10 text-primary text-sm rounded">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+
+                      <div className="flex justify-between items-center pb-4 border-b border-border">
+                        <span className="text-foreground/70">Ландшафт:</span>
+                        <span className="font-semibold">
+                          {terrainTags.length > 0 ? terrainTags.join(", ") : "Не выбрано"}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center pb-4 border-b border-border">
+                        <span className="text-foreground/70">Точек в маршруте:</span>
+                        <span className="font-semibold">{routePoints.length}</span>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
@@ -171,7 +177,9 @@ export default function BuilderPage() {
                     <div className="aspect-video bg-secondary rounded-lg flex items-center justify-center">
                       <div className="text-center">
                         <Ruler size={48} className="text-muted-foreground mx-auto mb-4 opacity-50" />
-                        <p className="text-foreground/70">Заполните параметры маршрута и нажмите "Построить"</p>
+                        <p className="text-foreground/70">
+                          Заполните параметры маршрута и нажмите &quot;Построить&quot;
+                        </p>
                       </div>
                     </div>
                   </Card>

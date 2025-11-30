@@ -1,7 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { MapContainer, TileLayer, Polyline, CircleMarker, useMapEvents } from "react-leaflet"
+import {
+  MapContainer,
+  TileLayer,
+  Polyline,
+  CircleMarker,
+  useMapEvents,
+} from "react-leaflet"
 import type { LeafletMouseEvent } from "leaflet"
 import "leaflet/dist/leaflet.css"
 
@@ -11,75 +17,122 @@ interface RouteBuilderMapProps {
   onRouteChange?: (points: LatLng[]) => void
 }
 
-// Центральная точка — можешь поменять на свой регион
-const DEFAULT_CENTER: LatLng = { lat: 61.78, lng: 34.35 } // условная Карелия
+const DEFAULT_CENTER: LatLng = { lat: 61.78, lng: 34.35 }
 
 function ClickHandler({ onClick }: { onClick: (event: LeafletMouseEvent) => void }) {
   useMapEvents({
-    click: (event) => {
-      onClick(event)
-    },
+    click: (event) => onClick(event),
   })
-
   return null
 }
 
 export default function RouteBuilderMap({ onRouteChange }: RouteBuilderMapProps) {
-  const [points, setPoints] = useState<LatLng[]>([])
+  const [viaPoints, setViaPoints] = useState<LatLng[]>([])
+  const [routeLine, setRouteLine] = useState<LatLng[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const handleMapClick = (event: LeafletMouseEvent) => {
-    const nextPoints = [...points, { lat: event.latlng.lat, lng: event.latlng.lng }]
-    setPoints(nextPoints)
-    onRouteChange?.(nextPoints)
+  const recalcRoute = async (nextVia: LatLng[]) => {
+    if (nextVia.length < 2) {
+      setRouteLine([])
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      // ORS ждёт [lon, lat]
+      const coordinates = nextVia.map((p) => [p.lng, p.lat])
+
+      const res = await fetch("/api/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coordinates,
+          profile: "foot-hiking", // тут можно позже переключать профиль
+        }),
+      })
+
+      const data = await res.json()
+
+      const geom =
+        data?.features?.[0]?.geometry?.coordinates as [number, number][] | undefined
+
+      if (!geom) {
+        console.warn("No geometry in ORS response", data)
+        return
+      }
+
+      const line = geom.map(([lon, lat]) => ({ lat, lng: lon }))
+      setRouteLine(line)
+      onRouteChange?.(line)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMapClick = async (event: LeafletMouseEvent) => {
+    const newPoint = { lat: event.latlng.lat, lng: event.latlng.lng }
+    const nextVia = [...viaPoints, newPoint]
+    setViaPoints(nextVia)
+    await recalcRoute(nextVia)
   }
 
   const handleReset = () => {
-    setPoints([])
+    setViaPoints([])
+    setRouteLine([])
     onRouteChange?.([])
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border">
         <MapContainer
           center={[DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]}
           zoom={8}
-          scrollWheelZoom={true}
+          scrollWheelZoom
           className="w-full h-full"
+          attributionControl={false}
         >
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url={`https://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=${process.env.NEXT_PUBLIC_THUNDERFOREST_KEY}`}
           />
 
           <ClickHandler onClick={handleMapClick} />
 
-          {points.length > 0 && (
-            <>
-              <Polyline positions={points.map((p) => [p.lat, p.lng])} />
+          {/* точки, которые кликнул пользователь */}
+          {viaPoints.map((p, index) => (
+            <CircleMarker
+              key={`${p.lat}-${p.lng}-${index}`}
+              center={[p.lat, p.lng]}
+              radius={5}
+            />
+          ))}
 
-              {points.map((p, index) => (
-                <CircleMarker
-                  key={`${p.lat}-${p.lng}-${index}`}
-                  center={[p.lat, p.lng]}
-                  radius={5}
-                  pathOptions={{ color: "#22c55e", fillColor: "#22c55e" }} // Tailwind: можно убрать цвет, если надо только по умолчанию
-                />
-              ))}
-            </>
+          {/* реальный маршрут по тропам/дорогам */}
+          {routeLine.length > 0 && (
+            <Polyline positions={routeLine.map((p) => [p.lat, p.lng])} />
           )}
         </MapContainer>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>Точек на маршруте: {points.length}</span>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          Точек: {viaPoints.length}
+          {loading && " • строим маршрут..."}
+        </span>
         <button
           type="button"
           onClick={handleReset}
-          className="underline underline-offset-4 hover:text-foreground"
+          className="underline underline-offset-4 hover:text-foreground text-xs"
         >
           Очистить маршрут
         </button>
+      </div>
+
+      <div className="text-[10px] text-muted-foreground">
+        Карта: © Thunderforest, © OpenStreetMap contributors
       </div>
     </div>
   )
