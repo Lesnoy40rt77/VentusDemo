@@ -1,185 +1,281 @@
-"use client"
-
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { Button } from "@/components/button"
 import { Card } from "@/components/card"
-import { useState } from "react"
-import { MapPin, Clock, Mountain, AlertTriangle, Backpack, Share2, Heart } from "lucide-react"
+import { Button } from "@/components/button"
+import Link from "next/link"
+import { MapPin, Clock } from "lucide-react"
+import { prisma } from "@/lib/db"
+import RouteDiscussionClient from "./RouteDiscussionClient"
+import RouteStaticMap from "@/components/route-static-map"
 
-export default function RouteDetailPage({ params }: { params: { id: string } }) {
-  const [gearItems, setGearItems] = useState([
-    { id: 1, name: "Ветровка", checked: false },
-    { id: 2, name: "Вода 0.5л", checked: false },
-    { id: 3, name: "Фонарик", checked: false },
-    { id: 4, name: "Кроссовки", checked: false },
-    { id: 5, name: "Рюкзак", checked: false },
-    { id: 6, name: "Солнцезащитный крем", checked: false },
-  ])
+type LatLng = { lat: number; lng: number }
 
-  const toggleGear = (id: number) => {
-    setGearItems((prev) => prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item)))
+// аккуратно вытащим точки из JSON
+function normalizePoints(points: unknown): LatLng[] {
+  if (!Array.isArray(points)) return []
+  return points
+    .map((p: any) =>
+      typeof p === "object" && p !== null
+        ? { lat: Number(p.lat), lng: Number(p.lng) }
+        : null,
+    )
+    .filter(
+      (p): p is LatLng =>
+        !!p && Number.isFinite(p.lat) && Number.isFinite(p.lng),
+    )
+}
+
+async function fetchWeatherForRoute(points: LatLng[]) {
+  if (points.length < 2) return null
+  const mid = points[Math.floor(points.length / 2)]
+
+  try {
+    const url = new URL("https://api.open-meteo.com/v1/forecast")
+    url.searchParams.set("latitude", String(mid.lat))
+    url.searchParams.set("longitude", String(mid.lng))
+    url.searchParams.set(
+      "daily",
+      "temperature_2m_max,temperature_2m_min,precipitation_sum",
+    )
+    url.searchParams.set("timezone", "auto")
+
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
+    })
+
+    if (!res.ok) {
+      console.error("weather upstream status", res.status)
+      return null
+    }
+
+    const data = await res.json()
+    return data
+  } catch (e) {
+    console.error("weather fetch error", e)
+    return null
   }
+}
+
+export default async function RoutePage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  // 🔹 максимально прямолинейно: просто берём params.id
+  const id = params.id
+
+  // если почему-то даже тут id нет — покажем страницу, а не упадём
+  if (!id) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center px-4">
+          <Card className="p-6 w-full max-w-md text-center space-y-3">
+            <p className="text-sm text-foreground/70">
+              Не удалось определить ID маршрута из URL.
+            </p>
+            <p className="text-xs text-foreground/50">
+              Попробуйте вернуться к базе треков и открыть маршрут ещё раз.
+            </p>
+            <Button asChild className="w-full" variant="secondary">
+              <Link href="/database">Вернуться к базе треков</Link>
+            </Button>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  // пробуем достать маршрут из БД
+  let route = null as Awaited<
+    ReturnType<typeof prisma.route.findUnique>
+  > | null
+
+  try {
+    route = await prisma.route.findUnique({
+      where: { id }, // если id нормальный и такой маршрут есть — он сюда попадёт
+      include: {
+        creator: { select: { id: true, name: true, email: true } },
+        posts: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    })
+  } catch (e) {
+    console.error("RoutePage prisma.findUnique error:", e)
+  }
+
+  // если ничего не нашли — аккуратная «не найдено», но БЕЗ notFound()
+  if (!route) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center px-4">
+          <Card className="p-6 w-full max-w-md text-center space-y-3">
+            <p className="text-sm text-foreground/70">
+              Маршрут с таким ID не найден в базе.
+            </p>
+            <p className="text-xs text-foreground/50 break-all">
+              ID: <code>{id}</code>
+            </p>
+            <Button asChild className="w-full" variant="secondary">
+              <Link href="/database">Вернуться к базе треков</Link>
+            </Button>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  const points = normalizePoints(route.points)
+  const center: LatLng =
+    points.length > 0
+      ? points[Math.floor(points.length / 2)]
+      : { lat: 61.78, lng: 34.35 }
+
+  const weather = await fetchWeatherForRoute(points)
+
+  const createdAtText = new Date(route.createdAt).toLocaleDateString(
+    "ru-RU",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    },
+  )
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       <main className="flex-1">
-        {/* Map Header */}
-        <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent/10 w-full" />
+        {/* Hero */}
+        <section className="bg-secondary py-10 border-b border-border">
+          <div className="max-w-7xl mx-auto px-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-foreground/60 mb-2">
+                Маршрут
+              </p>
+              <h1 className="text-3xl md:text-4xl font-semibold mb-2">
+                {route.title}
+              </h1>
+              <p className="text-foreground/70 max-w-2xl">
+                {route.description ||
+                  "Автор ещё не добавил описание к этому маршруту."}
+              </p>
+            </div>
 
-        {/* Main Content */}
-        <section className="py-12">
-          <div className="max-w-7xl mx-auto px-8">
-            {/* Title & Meta */}
-            <div className="mb-8 flex items-start justify-between">
-              <div>
-                <h1 className="text-4xl font-semibold mb-4">Горная тропа Карелия</h1>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-sm text-foreground/70 space-y-1">
+              <p>
+                Автор:{" "}
+                <span className="font-medium">
+                  {route.creator.name || route.creator.email}
+                </span>
+              </p>
+              <p>Создан: {createdAtText}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Content */}
+        <section className="py-10">
+          <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Левая часть: карта + инфа + погода */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="p-4">
+                <RouteStaticMap points={points} center={center} />
+                <div className="mt-4 flex flex-wrap gap-4 text-sm text-foreground/80">
                   <div className="flex items-center gap-2">
-                    <MapPin size={20} className="text-primary" />
-                    <div>
-                      <p className="text-sm text-foreground/70">Расстояние</p>
-                      <p className="font-semibold">12 км</p>
-                    </div>
+                    <MapPin size={16} className="text-primary" />
+                    <span>
+                      Дистанция: {route.distanceKm.toFixed(1)} км
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock size={20} className="text-primary" />
-                    <div>
-                      <p className="text-sm text-foreground/70">Время</p>
-                      <p className="font-semibold">4-5 часов</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mountain size={20} className="text-primary" />
-                    <div>
-                      <p className="text-sm text-foreground/70">Сложность</p>
-                      <p className="font-semibold">Средний</p>
-                    </div>
+                    <Clock size={16} className="text-primary" />
+                    <span>
+                      Время:{" "}
+                      {route.durationHrs
+                        ? `${route.durationHrs.toFixed(1)} ч`
+                        : "—"}
+                    </span>
                   </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button className="p-3 bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition">
-                  <Heart size={20} />
-                </button>
-                <button className="p-3 bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition">
-                  <Share2 size={20} />
-                </button>
-              </div>
-            </div>
+              </Card>
 
-            {/* Main Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                {/* Description */}
-                <Card>
-                  <h2 className="text-2xl font-semibold mb-4">О маршруте</h2>
-                  <p className="text-foreground/70 leading-relaxed">
-                    Это одна из самых популярных троп в Карелии. Маршрут начинается в долине и постепенно набирает
-                    высоту, открывая потрясающие виды на лесной массив. Идеально подходит для опытных туристов, которые
-                    ищут вызов.
+              <Card className="p-4">
+                <h2 className="text-lg font-semibold mb-3">
+                  Погода на маршруте
+                </h2>
+                {!weather && (
+                  <p className="text-sm text-foreground/70">
+                    Не удалось получить прогноз погоды. Попробуйте позже.
                   </p>
-                </Card>
-
-                {/* Weather Along Route */}
-                <Card>
-                  <h2 className="text-2xl font-semibold mb-4">Погода на маршруте</h2>
-                  <div className="space-y-4">
-                    {[
-                      { time: "08:00", temp: "10°C", icon: "☀️", desc: "Ясно" },
-                      { time: "12:00", temp: "15°C", icon: "⛅", desc: "Облачно" },
-                      { time: "16:00", temp: "12°C", icon: "🌧️", desc: "Дождь" },
-                    ].map((weather, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <span className="text-3xl">{weather.icon}</span>
-                          <div>
-                            <p className="font-semibold">{weather.time}</p>
-                            <p className="text-sm text-foreground/70">{weather.desc}</p>
-                          </div>
-                        </div>
-                        <span className="font-semibold text-primary">{weather.temp}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                {/* Gear List */}
-                <Card>
-                  <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-                    <Backpack size={24} />
-                    Снаряжение
-                  </h2>
-                  <div className="space-y-3">
-                    {gearItems.map((item) => (
-                      <label
-                        key={item.id}
-                        className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-muted transition"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={item.checked}
-                          onChange={() => toggleGear(item.id)}
-                          className="w-5 h-5"
-                        />
-                        <span className={item.checked ? "line-through text-foreground/50" : ""}>{item.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="mt-6 p-4 bg-secondary rounded-lg">
-                    <p className="text-sm font-medium text-primary">
-                      Совет: На горных маршрутах погода меняется быстро. Убедитесь, что у вас есть несколько слоёв одежды!
+                )}
+                {weather && (
+                  <div className="text-sm text-foreground/80 space-y-2">
+                    <p>
+                      Сегодня:{" "}
+                      <span className="font-medium">
+                        {weather.daily?.temperature_2m_max?.[0]}° /{" "}
+                        {weather.daily?.temperature_2m_min?.[0]}°C
+                      </span>
+                    </p>
+                    <p>
+                      Осадки за день:{" "}
+                      <span className="font-medium">
+                        {weather.daily?.precipitation_sum?.[0]} мм
+                      </span>
                     </p>
                   </div>
-                </Card>
-
-                {/* Warnings */}
-                <Card>
-                  <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-                    <AlertTriangle size={24} />
-                    Предупреждения
-                  </h2>
-                  <div className="space-y-3">
-                    <div className="p-4 border-l-4 border-yellow-500 bg-yellow-50 rounded">
-                      <p className="font-semibold text-yellow-900">Высота</p>
-                      <p className="text-sm text-yellow-800">
-                        Узкие горные тропы требуют подготовки для прохождения. Может быть трудно неопытным туристам.
-                      </p>
-                    </div>
-                    <div className="p-4 border-l-4 border-orange-500 bg-orange-50 rounded">
-                      <p className="font-semibold text-orange-900">Скалистый участок</p>
-                      <p className="text-sm text-orange-800">
-                        Часть маршрута проходит по скалистой тропе. Требуется хорошая координация.
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Sidebar CTA */}
-              <div>
-                <Card className="sticky top-24">
-                  <Button variant="primary" className="w-full mb-3">
-                    Начать маршрут
-                  </Button>
-                  <Button variant="secondary" className="w-full">
-                    Сохранить
-                  </Button>
-
-                  <div className="mt-6 p-4 bg-secondary rounded-lg">
-                    <h4 className="font-semibold text-sm mb-2">Рекомендуемое время</h4>
-                    <p className="text-sm text-foreground/70">Начните рано утром для лучшего опыта</p>
-                  </div>
-
-                  <div className="mt-4 p-4 bg-secondary rounded-lg">
-                    <h4 className="font-semibold text-sm mb-2">Экстренные контакты</h4>
-                    <p className="text-sm text-foreground/70">Спасательная служба: 112</p>
-                  </div>
-                </Card>
-              </div>
+                )}
+              </Card>
             </div>
+
+            {/* Правая часть: экипировка, безопасность, обсуждение */}
+            <div className="space-y-6">
+              <Card className="p-4">
+                <h2 className="text-lg font-semibold mb-3">
+                  Что взять с собой
+                </h2>
+                <ul className="text-sm text-foreground/80 list-disc pl-5 space-y-1">
+                  <li>Запас воды и перекус.</li>
+                  <li>Тёплая одежда и дождевик.</li>
+                  <li>Заряженный телефон и пауэрбанк.</li>
+                  <li>Аптечка и средства от насекомых.</li>
+                </ul>
+              </Card>
+
+              <Card className="p-4">
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <span className="text-amber-500">⚠</span> Безопасность
+                </h2>
+                <ul className="text-sm text-foreground/80 list-disc pl-5 space-y-1">
+                  <li>Сообщите близким маршрут и время возвращения.</li>
+                  <li>Проверьте связь и заряд перед выходом.</li>
+                  <li>Не уходите с тропы и следите за прогнозом.</li>
+                </ul>
+              </Card>
+
+              <RouteDiscussionClient
+                routeId={route.id}
+                initialPosts={route.posts}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Кнопка назад */}
+        <section className="pb-10">
+          <div className="max-w-7xl mx-auto px-8">
+            <Button asChild variant="secondary">
+              <Link href="/database">Вернуться к базе треков</Link>
+            </Button>
           </div>
         </section>
       </main>
