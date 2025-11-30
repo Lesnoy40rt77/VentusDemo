@@ -7,3 +7,4 @@ out
 dev.db
 *.db-journal
 /lib/generated/prisma
+prisma/dev.db

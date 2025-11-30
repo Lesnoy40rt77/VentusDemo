@@ -4,11 +4,10 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/button"
 import { Card } from "@/components/card"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { MapPin, Ruler } from "lucide-react"
 import dynamic from "next/dynamic"
-import { useRouter } from "next/navigation"
-
 
 const RouteBuilderMap = dynamic(() => import("@/components/route-builder-map"), {
   ssr: false,
@@ -19,7 +18,7 @@ type LatLng = { lat: number; lng: number }
 function computeDistanceKm(points: LatLng[]): number {
   if (points.length < 2) return 0
 
-  const R = 6371 // Радиус Земли в км
+  const R = 6371
   const toRad = (deg: number) => (deg * Math.PI) / 180
 
   let total = 0
@@ -45,53 +44,8 @@ function computeDistanceKm(points: LatLng[]): number {
 
 export default function BuilderPage() {
   const router = useRouter()
+
   const [authChecked, setAuthChecked] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function checkAuth() {
-      try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" })
-        const data = await res.json()
-
-        if (!res.ok || !data.user) {
-          if (!cancelled) {
-            router.push("/auth?next=/builder")
-          }
-          return
-        }
-
-        if (!cancelled) {
-          setAuthChecked(true)
-        }
-      } catch (e) {
-        if (!cancelled) {
-          router.push("/auth?next=/builder")
-        }
-      }
-    }
-
-    checkAuth()
-
-    return () => {
-      cancelled = true
-    }
-  }, [router])
-
-  if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-foreground/70">
-            Проверяем авторизацию...
-          </p>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
 
   const [routeGenerated, setRouteGenerated] = useState(false)
   const [routePoints, setRoutePoints] = useState<LatLng[]>([])
@@ -114,6 +68,38 @@ export default function BuilderPage() {
 
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" })
+        const data = await res.json()
+
+        if (!res.ok || !data.user) {
+          if (!cancelled) {
+            router.push("/auth?next=/builder")
+          }
+          return
+        }
+
+        if (!cancelled) {
+          setAuthChecked(true)
+        }
+      } catch {
+        if (!cancelled) {
+          router.push("/auth?next=/builder")
+        }
+      }
+    }
+
+    checkAuth()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router])
 
   const handleRouteChange = (points: LatLng[]) => {
     setRoutePoints(points)
@@ -248,12 +234,23 @@ export default function BuilderPage() {
     }
   }
 
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-foreground/70">Проверяем авторизацию...</p>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
       <main className="flex-1">
-        {/* Hero */}
         <section className="bg-secondary py-12 border-b border-border">
           <div className="max-w-7xl mx-auto px-8">
             <h1 className="text-4xl font-semibold mb-2">Построить маршрут</h1>
@@ -263,16 +260,13 @@ export default function BuilderPage() {
           </div>
         </section>
 
-        {/* Content */}
         <section className="py-12">
           <div className="max-w-7xl mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Form */}
               <div className="lg:col-span-1">
                 <Card>
                   <h2 className="text-2xl font-semibold mb-6">Параметры маршрута</h2>
 
-                  {/* Start Point */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium mb-2">
                       Начальная точка
@@ -311,7 +305,6 @@ export default function BuilderPage() {
                     )}
                   </div>
 
-                  {/* Название и описание */}
                   <div className="mb-6 space-y-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">
@@ -339,7 +332,6 @@ export default function BuilderPage() {
                     </div>
                   </div>
 
-                  {/* Информация о маршруте */}
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between items-center pb-2 border-b border-border">
                       <span className="text-foreground/70">Дистанция:</span>
@@ -359,7 +351,6 @@ export default function BuilderPage() {
                     </div>
                   </div>
 
-                  {/* Погода */}
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-2">Погода на маршруте</h3>
                     {loadingWeather && (
@@ -387,7 +378,6 @@ export default function BuilderPage() {
                     )}
                   </div>
 
-                  {/* Чеклист экипировки */}
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-2">Что взять с собой</h3>
                     <ul className="text-sm text-foreground/80 list-disc pl-5 space-y-1">
@@ -398,7 +388,6 @@ export default function BuilderPage() {
                     </ul>
                   </div>
 
-                  {/* Безопасность */}
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                       <span className="text-amber-500">⚠</span> Безопасность
@@ -425,7 +414,6 @@ export default function BuilderPage() {
                 </Card>
               </div>
 
-              {/* Preview */}
               <div className="lg:col-span-2">
                 <Card>
                   <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border mb-4">
