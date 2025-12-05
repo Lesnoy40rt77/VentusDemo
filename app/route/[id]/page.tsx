@@ -27,6 +27,7 @@ type RouteItem = {
   durationHrs: number | null
   points: unknown
   createdAt: string
+  imageUrl: string | null
   creator: Creator
 }
 
@@ -252,6 +253,15 @@ export default function RoutePage() {
             {/* Левая часть: карта + инфа + погода */}
             <div className="lg:col-span-2 space-y-6">
               <Card className="p-4">
+                {route.imageUrl && (
+                  <div className="mb-6 overflow-hidden rounded-xl">
+                    <img
+                      src={route.imageUrl}
+                      alt={route.title}
+                      className="w-full h-64 object-cover"
+                    />
+                  </div>
+                )}
                 <RouteStaticMap points={points} center={center} />
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-foreground/80">
                   <div className="flex items-center gap-2">

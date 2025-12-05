@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { title, description, points, distanceKm, durationHrs } =
+    const { title, description, points, distanceKm, durationHrs, imageUrl } =
       await req.json()
 
     if (!title || !points || !Array.isArray(points) || points.length < 2) {
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
         points,
         distanceKm,
         durationHrs,
+        imageUrl: imageUrl ?? null,
         creatorId: user.id,
       },
     })

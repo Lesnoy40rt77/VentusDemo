@@ -22,6 +22,7 @@ type RouteItem = {
   distanceKm: number
   durationHrs: number | null
   createdAt: string
+  imageUrl: string | null
   creator: {
     id: string
     name: string | null
@@ -337,6 +338,15 @@ export default function DashboardPage() {
                             key={route.id}
                             className="p-4 flex items-start justify-between gap-4"
                           >
+                            {route.imageUrl && (
+                              <div className="mb-3 overflow-hidden rounded-lg">
+                                <img
+                                  src={route.imageUrl}
+                                  alt={route.title}
+                                  className="w-full h-32 object-cover"
+                                />
+                              </div>
+                            )}
                             <div>
                               <h3 className="font-semibold text-base mb-1">
                                 {route.title}

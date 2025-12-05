@@ -6,6 +6,22 @@ import { IconCircle } from "@/components/icon-circle"
 import { Mountain, Users, MapPin, Shield, TreePine } from "lucide-react"
 import Link from "next/link"
 
+type RouteItem = {
+  id: string
+  title: string
+  distanceKm: number
+  durationHrs: number | null
+  imageUrl: string | null
+}
+
+async function getPopularRoutes(): Promise<RouteItem[]> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/routes`, {
+    cache: "no-store",
+  })
+  const data = await res.json()
+  return data.slice(0, 3)
+}
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
@@ -112,27 +128,45 @@ export default function LandingPage() {
       </section>
 
       {/* Sample Routes Section */}
-      <section className="py-20">
+      <section className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-8">
-          <h2 className="text-4xl font-semibold text-center mb-16">Популярные маршруты</h2>
+          <h2 className="text-4xl font-semibold text-center mb-16">
+            Популярные маршруты
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: "Озеро в горах", difficulty: "Средний", distance: "12 км" },
-              { title: "Лесной водопад", difficulty: "Лёгкий", distance: "8 км" },
-              { title: "Вершина Кивакка", difficulty: "Сложный", distance: "18 км" },
-            ].map((route, idx) => (
-              <Card key={idx}>
-                <div className="aspect-video bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg mb-4 flex items-center justify-center">
-                  <MapPin size={48} className="text-muted-foreground opacity-50" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{route.title}</h3>
+            {popularRoutes.map((route) => (
+              <Card key={route.id} className="flex flex-col">
+                {route.imageUrl ? (
+                  <div className="aspect-video mb-4 overflow-hidden rounded-lg">
+                    <img
+                      src={route.imageUrl}
+                      alt={route.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg mb-4 flex items-center justify-center">
+                    <MapPin className="opacity-50" />
+                  </div>
+                )}
+
+                <h3 className="text-lg font-semibold mb-2">
+                  {route.title}
+                </h3>
                 <div className="flex justify-between text-sm text-foreground/70 mb-4">
-                  <span>{route.distance}</span>
-                  <span>{route.difficulty}</span>
+                  <span>{route.distanceKm.toFixed(1)} км</span>
+                  {route.durationHrs && (
+                    <span>{route.durationHrs.toFixed(1)} ч</span>
+                  )}
                 </div>
+
                 <div className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
                   Weather chip
                 </div>
+
+                <Button asChild variant="outline" className="mt-4">
+                  <a href={`/route/${route.id}`}>Открыть маршрут</a>
+                </Button>
               </Card>
             ))}
           </div>

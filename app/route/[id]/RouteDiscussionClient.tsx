@@ -17,6 +17,7 @@ type Post = {
   id: string
   title: string
   content: string
+  imageUrl: string | null
   createdAt: string
   author: Author
 }
@@ -75,6 +76,7 @@ export default function RouteDiscussionClient({
         title: data.title,
         content: data.content,
         createdAt: data.createdAt,
+        imageUrl: imageUrl ?? null,
         author: data.author ?? {
           id: "",
           name: null,

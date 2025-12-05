@@ -13,6 +13,7 @@ type Post = {
   title: string
   content: string
   createdAt: string
+  imageUrl: string | null
   author: { id: string; name: string | null; email: string }
   route?: { id: string; title: string } | null
   comments: { id: string }[]
@@ -25,6 +26,43 @@ export default function CommunityPage() {
   const [content, setContent] = useState("")
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [postImageUrl, setPostImageUrl] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+
+  const handlePostImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImageError(null)
+    setUploadingImage(true)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setImageError(data.error || "Не удалось загрузить файл")
+        return
+      }
+
+      setPostImageUrl(data.url)
+    } catch {
+      setImageError("Ошибка загрузки файла")
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+
 
   const loadPosts = async () => {
     try {
@@ -59,7 +97,8 @@ export default function CommunityPage() {
         body: JSON.stringify({
           title: title.trim(),
           content: content.trim(),
-          routeId: null, // позже можно привязать к конкретному маршруту
+          imageUrl: postImageUrl,
+          routeId: null, // TODO:позже можно привязать к конкретному маршруту
         }),
       })
       const data = await res.json()
@@ -73,6 +112,7 @@ export default function CommunityPage() {
       }
       setTitle("")
       setContent("")
+      setPostImageUrl(null)
       await loadPosts()
     } catch (e) {
       console.error(e)
@@ -124,6 +164,25 @@ export default function CommunityPage() {
                     placeholder="Расскажите о маршруте, погоде, трудностях и советах."
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">
+                    Фото (опционально)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePostImageChange}
+                    className="block w-full text-xs text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
+                  />
+                  {uploadingImage && (
+                    <p className="text-xs text-foreground/60">
+                      Загружаем изображение...
+                    </p>
+                  )}
+                  {imageError && (
+                    <p className="text-xs text-red-500">{imageError}</p>
+                  )}
+                </div>
                 {error && (
                   <p className="text-xs text-red-500">{error}</p>
                 )}
@@ -149,6 +208,17 @@ export default function CommunityPage() {
             <div className="space-y-4">
               {posts.map((post) => (
                 <Card key={post.id} className="p-5">
+                  {post.imageUrl && (
+                    <div className="mb-3 overflow-hidden rounded-lg">
+                      <img
+                        src={post.imageUrl}
+                        alt={post.title}
+                        className="w-full max-h-64 object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm">
                       {post.author.name?.[0]?.toUpperCase() ||

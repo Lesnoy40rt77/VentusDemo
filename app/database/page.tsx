@@ -14,6 +14,7 @@ type RouteItem = {
   description: string | null
   distanceKm: number
   durationHrs: number | null
+  imageUrl: string | null
   creator: { name: string | null; email: string }
   createdAt: string
 }
