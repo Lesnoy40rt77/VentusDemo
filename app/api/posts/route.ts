@@ -55,21 +55,15 @@ export async function POST(req: Request) {
     )
   }
 
-    const post = await prisma.post.create({
+  const post = await prisma.post.create({
     data: {
-      title,
-      content,
-      imageUrl: imageUrl ?? null,
+      title: parsed.title,
+      content: parsed.content,
+      routeId: parsed.routeId ?? null,
+      imageUrl: parsed.imageUrl ?? null,
       authorId: user.id,
-      routeId: routeId ?? null,
-    },
-    include: {
-      author: { select: { id: true, name: true } },
-      route: { select: { id: true, title: true } },
-      _count: { select: { comments: true } },
     },
   })
-
 
   return NextResponse.json(post)
 }
