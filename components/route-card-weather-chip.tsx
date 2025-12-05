@@ -13,6 +13,16 @@ type WeatherSummary = {
   description: string
 }
 
+type WeatherDaily = {
+  temperature_2m_max?: number[]
+  temperature_2m_min?: number[]
+  precipitation_sum?: number[]
+}
+
+type WeatherApiResponse = {
+  daily?: WeatherDaily
+}
+
 export function RouteCardWeatherChip({ points }: Props) {
   const [data, setData] = useState<WeatherSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -35,35 +45,42 @@ export function RouteCardWeatherChip({ points }: Props) {
           { cache: "no-store" },
         )
 
-
         if (!res.ok) {
+          console.error("RouteCardWeatherChip /api/weather status", res.status)
           setError("нет данных")
           return
         }
 
-        const json = await res.json()
+        const json = (await res.json()) as WeatherApiResponse
 
-        const temperature =
-          json.current?.temperature ??
-          json.temperature ??
-          json.current?.temp ??
-          null
+        const max = json.daily?.temperature_2m_max?.[0] ?? null
+        const min = json.daily?.temperature_2m_min?.[0] ?? null
+        const precip = json.daily?.precipitation_sum?.[0] ?? null
 
-        const description =
-          json.current?.description ??
-          json.description ??
-          json.current?.summary ??
-          "Погода"
+        const temperature = max ?? min
 
         if (temperature == null) {
           setError("нет данных")
           return
         }
 
+        let description = "Погода"
+
+        if (precip != null) {
+          if (precip < 0.1) {
+            description = "Без осадков"
+          } else if (precip < 2) {
+            description = `Небольшие осадки (~${precip.toFixed(1)} мм)`
+          } else {
+            description = `Осадки, ~${precip.toFixed(1)} мм`
+          }
+        }
+
         setData({
           temperature,
           description,
         })
+        setError(null)
       } catch (e) {
         setError("ошибка")
       } finally {

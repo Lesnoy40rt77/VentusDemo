@@ -16,7 +16,6 @@ type LatLng = { lat: number; lng: number }
 type Creator = {
   id: string
   name: string | null
-  email: string
 }
 
 type Post = {
@@ -145,8 +144,23 @@ export default function RoutePage() {
 
   const center: LatLng | null = useMemo(() => {
     if (!points.length) return null
-    return points[Math.floor(points.length / 2)]
+
+    const sum = points.reduce(
+      (acc, p) => {
+        return {
+          lat: acc.lat + p.lat,
+          lng: acc.lng + p.lng,
+        }
+      },
+      { lat: 0, lng: 0 },
+    )
+
+    return {
+      lat: sum.lat / points.length,
+      lng: sum.lng / points.length,
+    }
   }, [points])
+
 
   useEffect(() => {
     if (!center) return
@@ -248,7 +262,7 @@ export default function RoutePage() {
               <p>
                 Автор:{" "}
                 <span className="font-medium">
-                  {route.creator.name || route.creator.email}
+                  {route.creator.name || "Аноним"}
                 </span>
               </p>
               <p>Создан: {createdAtText}</p>

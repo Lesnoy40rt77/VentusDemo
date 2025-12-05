@@ -15,7 +15,7 @@ type RouteItem = {
   distanceKm: number
   durationHrs: number | null
   imageUrl: string | null
-  creator: { name: string | null; email: string }
+  creator: { name: string | null }
   createdAt: string
 }
 
@@ -95,7 +95,7 @@ export default function DatabasePage() {
                           : "—"}
                       </div>
                       <div className="text-xs text-foreground/60">
-                        Автор: {route.creator.name || route.creator.email}
+                        Автор: {route.creator.name || "Аноним"}
                       </div>
                     </div>
                   </div>

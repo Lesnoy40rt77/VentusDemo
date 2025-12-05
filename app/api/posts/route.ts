@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
-import { TRACE_OUTPUT_VERSION } from "next/dist/shared/lib/constants"
 import { z } from "zod"
 
 export async function GET() {
@@ -21,7 +20,7 @@ const createPostSchema = z.object({
   title: z.string().min(3).max(200),
   content: z.string().min(1).max(5000),
   routeId: z.string().optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
+  imageUrl: z.string().min(1).optional().nullable(),
 })
 
 export async function POST(req: Request) {

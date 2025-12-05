@@ -26,7 +26,6 @@ type RouteItem = {
   creator: {
     id: string
     name: string | null
-    email: string
   }
 }
 
@@ -38,13 +37,12 @@ type PostItem = {
   author: {
     id: string
     name: string | null
-    email: string
   }
   route?: {
     id: string
     title: string
   } | null
-  comments: { id: string }[]
+  _count: { comments: number }
 }
 
 export default function DashboardPage() {
@@ -431,7 +429,7 @@ export default function DashboardPage() {
                               </span>
                               <span className="flex items-center gap-1">
                                 <MessageCircle size={12} />
-                                {post.comments.length} коммент.
+                                {post._count.comments} коммент.
                               </span>
                             </div>
                           </Card>

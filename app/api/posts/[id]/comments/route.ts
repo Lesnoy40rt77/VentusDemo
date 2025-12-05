@@ -61,4 +61,6 @@ export async function POST(req: NextRequest, { params }: Params) {
       authorId: user.id,
     },
   })
+
+  return NextResponse.json(comment)
 }

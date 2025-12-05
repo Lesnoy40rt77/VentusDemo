@@ -16,7 +16,7 @@ const createRouteSchema = z.object({
     .min(2, "Маршрут должен содержать минимум две точки"),
   distanceKm: z.number().positive("Дистанция должна быть положительной"),
   durationHrs: z.number().positive().nullish(),
-  imageUrl: z.string().url().nullish(),
+  imageUrl: z.string().min(1).optional().nullable(),
 })
 
 
@@ -74,4 +74,6 @@ export async function POST(req: NextRequest) {
       creatorId: user.id,
     },
   })
+
+  return NextResponse.json(route)
 }
