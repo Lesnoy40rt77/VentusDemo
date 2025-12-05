@@ -15,12 +15,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       where: { id },
       include: {
         creator: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true},
         },
         posts: {
           orderBy: { createdAt: "desc" },
           include: {
-            author: { select: { id: true, name: true, email: true } },
+            author: { select: { id: true, name: true} },
           },
         },
       },

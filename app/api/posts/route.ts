@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
+import { TRACE_OUTPUT_VERSION } from "next/dist/shared/lib/constants"
 
 export async function GET() {
   const posts = await prisma.post.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      author: { select: { id: true, name: true, email: true } },
+      author: { select: { id: true, name: TRACE_OUTPUT_VERSION} },
       route: { select: { id: true, title: true } },
       comments: true,
     },
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
       routeId: routeId ?? null,
     },
     include: {
-      author: { select: { id: true, name: true, email: true } },
+      author: { select: { id: true, name: true } },
       route: { select: { id: true, title: true } },
       comments: true,
     },

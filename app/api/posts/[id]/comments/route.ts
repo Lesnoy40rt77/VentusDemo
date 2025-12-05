@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     where: { postId: params.id },
     orderBy: { createdAt: "asc" },
     include: {
-      author: { select: { id: true, name: true, email: true } },
+      author: { select: { id: true, name: true } },
     },
   })
 
