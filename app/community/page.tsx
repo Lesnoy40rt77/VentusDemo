@@ -14,9 +14,9 @@ type Post = {
   content: string
   createdAt: string
   imageUrl: string | null
-  author: { id: string; name: string | null; email: string }
+  author: { id: string; name: string | null }
   route?: { id: string; title: string } | null
-  comments: { id: string }[]
+  _count: { comments: number }
 }
 
 export default function CommunityPage() {
@@ -221,14 +221,13 @@ export default function CommunityPage() {
                   <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm">
-                      {post.author.name?.[0]?.toUpperCase() ||
-                        post.author.email[0]?.toUpperCase()}
+                      {post.author.name?.[0]?.toUpperCase() || "?"}
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
                         <div>
                           <h2 className="font-semibold text-sm">
-                            {post.author.name || post.author.email}
+                            {post.author.name || "Аноним"}
                           </h2>
                           <p className="text-xs text-foreground/60">
                             {new Date(post.createdAt).toLocaleString("ru-RU", {
@@ -267,7 +266,7 @@ export default function CommunityPage() {
                           className="flex items-center gap-1 hover:text-foreground"
                         >
                           <MessageCircle size={14} />
-                          Комментарии ({post.comments.length})
+                          Комментарии ({post._count.comments})
                         </button>
                       </div>
                     </div>
