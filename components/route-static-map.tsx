@@ -1,7 +1,14 @@
 "use client"
 
-import { MapContainer, TileLayer, Polyline, CircleMarker } from "react-leaflet"
-import type { LatLngExpression } from "leaflet"
+import { useEffect } from "react"
+import {
+  MapContainer,
+  TileLayer,
+  Polyline,
+  CircleMarker,
+  useMap,
+} from "react-leaflet"
+import { latLngBounds, type LatLngExpression } from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { MAP_TILE_URL } from "@/lib/mapConfig"
 
@@ -32,10 +39,40 @@ function smoothPath(points: LatLng[]): LatLng[] {
   return smoothed
 }
 
+function MapViewUpdater({
+  center,
+  points,
+}: {
+  center: LatLng
+  points: LatLng[]
+}) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!map) return
+
+    if (points.length > 1) {
+      const bounds = latLngBounds(
+        points.map((p) => [p.lat, p.lng] as [number, number]),
+      )
+      map.flyToBounds(bounds, {
+        padding: [20, 20],
+      })
+    } else {
+      map.flyTo([center.lat, center.lng], 9)
+    }
+  }, [map, center.lat, center.lng, points])
+
+  return null
+}
+
 export default function RouteStaticMap({ points, center }: RouteStaticMapProps) {
   const centerPos: LatLngExpression = [center.lat, center.lng]
   const smoothedPoints = smoothPath(points)
-  const polyPoints: LatLngExpression[] = smoothedPoints.map((p) => [p.lat, p.lng])
+  const polyPoints: LatLngExpression[] = smoothedPoints.map((p) => [
+    p.lat,
+    p.lng,
+  ])
 
   return (
     <div className="w-full aspect-video rounded-lg overflow-hidden border border-border">
@@ -47,6 +84,9 @@ export default function RouteStaticMap({ points, center }: RouteStaticMapProps) 
         attributionControl={false}
       >
         <TileLayer url={MAP_TILE_URL} />
+
+        {/* следим за сменой маршрута / центра */}
+        <MapViewUpdater center={center} points={smoothedPoints} />
 
         {smoothedPoints.map((p, index) => (
           <CircleMarker
