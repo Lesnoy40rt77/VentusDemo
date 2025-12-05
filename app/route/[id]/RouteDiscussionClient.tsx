@@ -10,7 +10,6 @@ import { useRouter } from "next/navigation"
 type Author = {
   id: string
   name: string | null
-  email: string
 }
 
 type Post = {
@@ -79,10 +78,10 @@ export default function RouteDiscussionClient({
         imageUrl: imageUrl ?? null,
         author: data.author ?? {
           id: "",
-          name: null,
-          email: "Автор",
+          name: "Автор",
         },
       }
+
 
       setPosts((prev) => [newPost, ...prev])
       setTitle("")
@@ -153,13 +152,12 @@ export default function RouteDiscussionClient({
             <div key={post.id} className="text-sm">
               <div className="flex items-start gap-2">
                 <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-[11px]">
-                  {post.author.name?.[0]?.toUpperCase() ||
-                    post.author.email[0]?.toUpperCase()}
+                  {post.author.name?.[0]?.toUpperCase() || "?"}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium text-xs">
-                      {post.author.name || post.author.email}
+                      {post.author.name || "Аноним"}
                     </span>
                     <span className="text-[10px] text-foreground/50 flex items-center gap-1">
                       <MessageCircle size={10} />
