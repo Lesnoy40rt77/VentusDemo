@@ -277,11 +277,11 @@ export default function RoutePage() {
             <div className="lg:col-span-2 space-y-6">
               <Card className="p-4">
                 {route.imageUrl && (
-                  <div className="mb-6 overflow-hidden rounded-xl">
+                  <div className="mb-6 overflow-hidden rounded-xl border border-border bg-black/5 flex items-center justify-center">
                     <img
                       src={route.imageUrl}
                       alt={route.title}
-                      className="w-full h-64 object-cover"
+                      className="max-h-80 w-auto object-contain"
                     />
                   </div>
                 )}

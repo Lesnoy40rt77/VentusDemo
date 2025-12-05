@@ -8,6 +8,7 @@ import Link from "next/link"
 import RouteStaticMap from "@/components/route-static-map"
 import { RouteCardWeatherChip } from "@/components/route-card-weather-chip"
 import { prisma } from "@/lib/db"
+import { HeroRouteCarousel } from "@/components/hero-route-carousel"
 
 type RoutePoint = {
   lat: number
@@ -96,13 +97,8 @@ export default async function LandingPage() {
 
           {/* Right Preview Card */}
           <div>
-            <Card className="lg:col-span-1">
-              <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <Mountain size={64} className="text-primary mx-auto mb-4 opacity-40" />
-                  <p className="text-muted-foreground">Route preview placeholder</p>
-                </div>
-              </div>
+            <Card className="lg:col-span-1 p-4">
+              <HeroRouteCarousel routes={popularRoutes} />
             </Card>
           </div>
         </div>
@@ -181,11 +177,11 @@ export default async function LandingPage() {
               return (
                 <Card key={route.id} className="flex flex-col">
                   {route.imageUrl ? (
-                    <div className="aspect-video mb-4 overflow-hidden rounded-lg">
+                    <div className="mb-4 overflow-hidden rounded-lg border border-border bg-black/5 flex items-center justify-center">
                       <img
                         src={route.imageUrl}
                         alt={route.title}
-                        className="w-full h-full object-cover"
+                        className="max-h-64 w-auto object-contain"
                       />
                     </div>
                   ) : hasPoints && center ? (
@@ -265,8 +261,6 @@ export default async function LandingPage() {
               </div>
             ))}
           </div>
-          {/* Vertical line */}
-          <div className="absolute left-1/2 md:left-20 top-32 bottom-0 w-1 bg-gradient-to-b from-primary via-accent to-transparent opacity-20" />
         </div>
       </section>
 

@@ -337,11 +337,11 @@ export default function DashboardPage() {
                             className="p-4 flex items-start justify-between gap-4"
                           >
                             {route.imageUrl && (
-                              <div className="mb-3 overflow-hidden rounded-lg">
+                              <div className="mb-3 overflow-hidden rounded-lg border border-border bg-black/5 flex items-center justify-center">
                                 <img
                                   src={route.imageUrl}
                                   alt={route.title}
-                                  className="w-full h-32 object-cover"
+                                  className="max-h-32 w-auto object-contain"
                                 />
                               </div>
                             )}

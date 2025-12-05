@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   MapContainer,
   TileLayer,
@@ -29,10 +29,32 @@ function ClickHandler({ onClick }: { onClick: (event: LeafletMouseEvent) => void
 
 function MapCenterUpdater({ center }: { center: LatLng }) {
   const map = useMap()
+
   useEffect(() => {
-    map.setView([center.lat, center.lng], map.getZoom())
-  }, [center.lat, center.lng, map])
+    map.setView([center.lat, center.lng])
+  }, [center, map])
+
   return null
+}
+
+function smoothRoute(points: LatLng[]): LatLng[] {
+  if (points.length <= 2) return points
+
+  const smoothed: LatLng[] = [points[0]]
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1]
+    const curr = points[i]
+    const next = points[i + 1]
+
+    smoothed.push({
+      lat: (prev.lat + curr.lat + next.lat) / 3,
+      lng: (prev.lng + curr.lng + next.lng) / 3,
+    })
+  }
+
+  smoothed.push(points[points.length - 1])
+  return smoothed
 }
 
 export default function RouteBuilderMap({ center, onRouteChange }: RouteBuilderMapProps) {
@@ -40,28 +62,24 @@ export default function RouteBuilderMap({ center, onRouteChange }: RouteBuilderM
   const [routeLine, setRouteLine] = useState<LatLng[]>([])
   const [loading, setLoading] = useState(false)
 
-  const recalcRoute = async (nextVia: LatLng[]) => {
-    if (nextVia.length < 2) {
-      setRouteLine([])
-      onRouteChange?.([])
+  const smoothedRouteLine = useMemo(() => smoothRoute(routeLine), [routeLine])
+
+  const recalcRoute = async (points: LatLng[]) => {
+    if (points.length < 2) {
+      setRouteLine(points)
+      onRouteChange?.(points)
       return
     }
 
     try {
       setLoading(true)
-
-      const coordinates = nextVia.map((p) => [p.lng, p.lat])
-
       const res = await fetch("/api/route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          coordinates,
-          profile: "foot-hiking",
-        }),
+        body: JSON.stringify({ points }),
       })
-
       const data = await res.json()
+
       const geom =
         data?.features?.[0]?.geometry?.coordinates as [number, number][] | undefined
 
@@ -100,22 +118,35 @@ export default function RouteBuilderMap({ center, onRouteChange }: RouteBuilderM
           className="w-full h-full"
           attributionControl={false}
         >
-          
-          <TileLayer
-            url={MAP_TILE_URL}
-          />
+          <TileLayer url={MAP_TILE_URL} />
 
           <MapCenterUpdater center={center} />
           <ClickHandler onClick={handleMapClick} />
 
           {viaPoints.map((p, index) => (
-            <CircleMarker key={`${p.lat}-${p.lng}-${index}`} center={[p.lat, p.lng]} radius={5} />
+            <CircleMarker
+              key={`${p.lat}-${p.lng}-${index}`}
+              center={[p.lat, p.lng]}
+              radius={3}
+            />
           ))}
 
-          {routeLine.length > 0 && (
-            <Polyline positions={routeLine.map((p) => [p.lat, p.lng])} />
+          {smoothedRouteLine.length > 0 && (
+            <Polyline
+              positions={smoothedRouteLine.map((p) => [p.lat, p.lng])}
+              weight={4}
+              smoothFactor={1}
+              lineCap="round"
+              lineJoin="round"
+            />
           )}
         </MapContainer>
+
+        {loading && (
+          <div className="absolute inset-0 bg-background/60 flex items-center justify-center text-xs">
+            Строим маршрут...
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">

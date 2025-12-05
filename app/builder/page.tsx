@@ -374,7 +374,7 @@ const handleImageChange = async (
                     </div>
                   </div>
                   
-                  <div className="mt-4 space-y-2">
+                                    <div className="mt-4 space-y-2">
                     <label className="block text-sm font-medium">
                       Обложка маршрута (опционально)
                     </label>
@@ -382,7 +382,7 @@ const handleImageChange = async (
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="block w-full text-xs text-foreground/80 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
+                      className="block w-full text-xs text-foreground/80 file:mr-3 file:px-4 file:py-2 file:rounded-md file:border-0 file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
                     />
                     {uploadingImage && (
                       <p className="text-xs text-foreground/60">
@@ -393,11 +393,11 @@ const handleImageChange = async (
                       <p className="text-xs text-red-500">{imageError}</p>
                     )}
                     {routeImageUrl && (
-                      <div className="mt-2">
+                      <div className="mt-2 overflow-hidden rounded-md border border-border bg-black/5 flex items-center justify-center">
                         <img
                           src={routeImageUrl}
                           alt="Обложка маршрута"
-                          className="w-full h-40 object-cover rounded-md border border-border"
+                          className="max-h-64 w-auto object-contain"
                         />
                       </div>
                     )}

@@ -209,11 +209,11 @@ export default function CommunityPage() {
               {posts.map((post) => (
                 <Card key={post.id} className="p-5">
                   {post.imageUrl && (
-                    <div className="mb-3 overflow-hidden rounded-lg">
+                    <div className="mb-3 overflow-hidden rounded-lg border border-border bg-black/5 flex items-center justify-center">
                       <img
                         src={post.imageUrl}
                         alt={post.title}
-                        className="w-full max-h-64 object-cover"
+                        className="max-h-64 w-auto object-contain"
                       />
                     </div>
                   )}
