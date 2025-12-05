@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
+import { z } from "zod"
 
 interface Params {
   params: { id: string }
@@ -18,6 +19,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   return NextResponse.json(comments)
 }
 
+const createCommentSchema = z.object({
+  content: z.string().min(1).max(2000),
+})
+
+
 export async function POST(req: NextRequest, { params }: Params) {
   const user = await getCurrentUser()
   if (!user) {
@@ -27,29 +33,32 @@ export async function POST(req: NextRequest, { params }: Params) {
     )
   }
 
+  let parsed
   try {
-    const { content } = await req.json()
-    if (!content) {
+    const body = await req.json()
+    parsed = createCommentSchema.parse(body)
+  } catch (err) {
+    if (err instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Пустой комментарий" },
+        {
+          error: "Неверный комментарий",
+          details: err.flatten(),
+        },
         { status: 400 },
       )
     }
 
-    const comment = await prisma.comment.create({
-      data: {
-        content,
-        postId: params.id,
-        authorId: user.id,
-      },
-    })
-
-    return NextResponse.json(comment)
-  } catch (e) {
-    console.error(e)
     return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 },
+      { error: "Ошибка разбора тела запроса" },
+      { status: 400 },
     )
   }
+
+  const comment = await prisma.comment.create({
+    data: {
+      content: parsed.content,
+      postId: params.id,
+      authorId: user.id,
+    },
+  })
 }

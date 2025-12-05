@@ -30,14 +30,11 @@ export function RouteCardWeatherChip({ points }: Props) {
         setLoading(true)
       setError(null)
 
-        const res = await fetch("/api/weather", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lat: start.lat,
-            lon: start.lng,
-          }),
-        })
+        const res = await fetch(
+          `/api/weather?lat=${start.lat}&lng=${start.lng}`,
+          { cache: "no-store" },
+        )
+
 
         if (!res.ok) {
           setError("нет данных")

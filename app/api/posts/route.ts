@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
 import { TRACE_OUTPUT_VERSION } from "next/dist/shared/lib/constants"
+import { z } from "zod"
 
 export async function GET() {
   const posts = await prisma.post.findMany({
@@ -16,6 +17,13 @@ export async function GET() {
   return NextResponse.json(posts)
 }
 
+const createPostSchema = z.object({
+  title: z.string().min(3).max(200),
+  content: z.string().min(1).max(5000),
+  routeId: z.string().optional().nullable(),
+  imageUrl: z.string().url().optional().nullable(),
+})
+
 export async function POST(req: Request) {
   const user = await getCurrentUser()
 
@@ -26,28 +34,34 @@ export async function POST(req: Request) {
     )
   }
 
-  const body = await req.json()
-  const { title, content, routeId, imageUrl } = body
+  let parsed
+  try {
+    const body = await req.json()
+    parsed = createPostSchema.parse(body)
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Неверные данные поста",
+          details: err.flatten(),
+        },
+        { status: 400 },
+      )
+    }
 
-  if (!title || !content) {
     return NextResponse.json(
-      { error: "Заполните заголовок и текст" },
+      { error: "Ошибка разбора тела запроса" },
       { status: 400 },
     )
   }
 
   const post = await prisma.post.create({
     data: {
-      title,
-      content,
-      imageUrl: imageUrl ?? null,
+      title: parsed.title,
+      content: parsed.content,
+      routeId: parsed.routeId ?? null,
+      imageUrl: parsed.imageUrl ?? null,
       authorId: user.id,
-      routeId: routeId ?? null,
-    },
-    include: {
-      author: { select: { id: true, name: true } },
-      route: { select: { id: true, title: true } },
-      comments: true,
     },
   })
 
