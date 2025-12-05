@@ -91,59 +91,52 @@ export default function RoutePage() {
   const [loadingWeather, setLoadingWeather] = useState(false)
 
   useEffect(() => {
-    if (!id) {
-      setError("Не удалось определить ID маршрута из URL")
-      setLoading(false)
-      return
-    }
+  if (!id) {
+    setError("Не удалось определить ID маршрута из URL")
+    setLoading(false)
+    return
+  }
 
-    const run = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  const run = async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-        const [routesRes, postsRes] = await Promise.all([
-          fetch("/api/routes", { cache: "no-store" }),
-          fetch("/api/posts", { cache: "no-store" }),
-        ])
+      const res = await fetch(`/api/routes/${id}`, {
+        cache: "no-store",
+      })
 
-        if (!routesRes.ok || !postsRes.ok) {
-          console.error(
-            "RoutePage data status",
-            routesRes.status,
-            postsRes.status,
-          )
-          setError("Не удалось загрузить данные маршрута")
-          setLoading(false)
-          return
-        }
+      if (!res.ok) {
+        console.error("RoutePage /api/routes/[id] status", res.status)
 
-        const routesData = (await routesRes.json()) as RouteItem[]
-        const postsData = (await postsRes.json()) as Post[]
-
-        const found = routesData.find((r) => r.id === id)
-
-        if (!found) {
+        if (res.status === 404) {
           setError("Маршрут с таким ID не найден")
-          setRoute(null)
-          setPosts([])
-          setLoading(false)
-          return
+        } else {
+          setError("Не удалось загрузить данные маршрута")
         }
 
-        setRoute(found)
-        const routePosts = postsData.filter((p) => p.route?.id === id)
-        setPosts(routePosts)
+        setRoute(null)
+        setPosts([])
         setLoading(false)
-      } catch (e) {
-        console.error("RoutePage fetch error", e)
-        setError("Ошибка загрузки маршрута")
-        setLoading(false)
+        return
       }
-    }
 
-    run()
-  }, [id])
+      const routeData = (await res.json()) as RouteItem & {
+        posts?: Post[]
+      }
+
+      setRoute(routeData)
+      setPosts(routeData.posts ?? [])
+      setLoading(false)
+    } catch (e) {
+      console.error("RoutePage error:", e)
+      setError("Ошибка загрузки данных маршрута")
+      setLoading(false)
+    }
+  }
+
+  run()
+}, [id])
 
   const points = useMemo(
     () => normalizePoints(route?.points ?? []),
