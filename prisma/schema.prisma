@@ -36,6 +36,7 @@ model Route {
   points      Json
   distanceKm  Float
   durationHrs Float?
+  imageUrl    String?
   createdAt   DateTime @default(now())
 
   creator   User   @relation(fields: [creatorId], references: [id])
@@ -48,6 +49,7 @@ model Post {
   id        String    @id @default(cuid())
   title     String
   content   String
+  imageUrl  String?
   createdAt DateTime  @default(now())
 
   author   User   @relation(fields: [authorId], references: [id])

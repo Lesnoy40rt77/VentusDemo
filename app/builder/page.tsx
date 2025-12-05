@@ -50,6 +50,10 @@ export default function BuilderPage() {
   const [routeGenerated, setRouteGenerated] = useState(false)
   const [routePoints, setRoutePoints] = useState<LatLng[]>([])
   const [distanceKm, setDistanceKm] = useState(0)
+  const [routeImageUrl, setRouteImageUrl] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+
 
   const [mapCenter, setMapCenter] = useState<LatLng>({
     lat: 61.78,
@@ -100,6 +104,43 @@ export default function BuilderPage() {
       cancelled = true
     }
   }, [router])
+
+const handleImageChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    setImageError(null)
+
+    try {
+      setUploadingImage(true)
+
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setImageError(data.error || "Не удалось загрузить файл")
+        return
+      }
+
+      setRouteImageUrl(data.url)
+    } catch (error) {
+      setImageError("Ошибка загрузки файла")
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
 
   const handleRouteChange = (points: LatLng[]) => {
     setRoutePoints(points)
@@ -210,6 +251,7 @@ export default function BuilderPage() {
           points: routePoints,
           distanceKm,
           durationHrs: distanceKm ? distanceKm / 4 : null,
+          imageUrl: routeImageUrl,
         }),
       })
 
@@ -330,6 +372,35 @@ export default function BuilderPage() {
                         placeholder="Что ждёт участников на этом маршруте?"
                       />
                     </div>
+                  </div>
+                  
+                  <div className="mt-4 space-y-2">
+                    <label className="block text-sm font-medium">
+                      Обложка маршрута (опционально)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="block w-full text-xs text-foreground/80 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
+                    />
+                    {uploadingImage && (
+                      <p className="text-xs text-foreground/60">
+                        Загружаем изображение...
+                      </p>
+                    )}
+                    {imageError && (
+                      <p className="text-xs text-red-500">{imageError}</p>
+                    )}
+                    {routeImageUrl && (
+                      <div className="mt-2">
+                        <img
+                          src={routeImageUrl}
+                          alt="Обложка маршрута"
+                          className="w-full h-40 object-cover rounded-md border border-border"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-3 mb-6">
