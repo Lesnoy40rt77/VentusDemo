@@ -19,6 +19,19 @@ type Creator = {
   email: string
 }
 
+type Post = {
+  id: string
+  title: string
+  content: string
+  createdAt: string
+  imageUrl: string | null
+  author: Creator
+  route?: {
+    id: string
+    title: string
+  } | null
+}
+
 type RouteItem = {
   id: string
   title: string
@@ -29,37 +42,39 @@ type RouteItem = {
   createdAt: string
   imageUrl: string | null
   creator: Creator
+  posts?: Post[]
 }
 
-type Post = {
-  id: string
-  title: string
-  content: string
-  createdAt: string
-  author: {
-    id: string
-    name: string | null
-    email: string
-  }
-  route?: {
-    id: string
-    title: string
-  } | null
-  comments: { id: string }[]
+type WeatherDaily = {
+  temperature_2m_max?: number[]
+  temperature_2m_min?: number[]
+  precipitation_sum?: number[]
 }
+
+type WeatherResponse = {
+  daily?: WeatherDaily
+}
+
 
 function normalizePoints(points: unknown): LatLng[] {
   if (!Array.isArray(points)) return []
-  return (points as any[])
-    .map((p) =>
-      p && typeof p === "object"
-        ? { lat: Number((p as any).lat), lng: Number((p as any).lng) }
-        : null,
-    )
-    .filter(
-      (p): p is LatLng =>
-        !!p && Number.isFinite(p.lat) && Number.isFinite(p.lng),
-    )
+
+  return points
+    .map((p) => {
+      if (!p || typeof p !== "object") return null
+
+      const maybe = p as { lat?: unknown; lng?: unknown }
+
+      const lat =
+        typeof maybe.lat === "number" ? maybe.lat : Number(maybe.lat)
+      const lng =
+        typeof maybe.lng === "number" ? maybe.lng : Number(maybe.lng)
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+
+      return { lat, lng }
+    })
+    .filter((p): p is LatLng => !!p)
 }
 
 export default function RoutePage() {
@@ -71,7 +86,8 @@ export default function RoutePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [weather, setWeather] = useState<any | null>(null)
+  const [weather, setWeather] = useState<WeatherResponse | null>(null)
+
   const [loadingWeather, setLoadingWeather] = useState(false)
 
   useEffect(() => {
@@ -150,7 +166,7 @@ export default function RoutePage() {
         const res = await fetch(
           `/api/weather?lat=${center.lat}&lng=${center.lng}`,
         )
-        const data = await res.json()
+        const data = (await res.json()) as WeatherResponse
 
         if (!res.ok) {
           console.error("RoutePage weather status", res.status, data)

@@ -33,11 +33,13 @@ export async function GET(req: NextRequest) {
 
     const data = await res.json()
     return NextResponse.json(data)
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(e)
+    const message = e instanceof Error ? e.message : "unknown"
     return NextResponse.json(
-      { error: "Server error", details: e?.message ?? "unknown" },
+      { error: "Server error", details: message },
       { status: 500 },
     )
   }
 }
+

@@ -1,6 +1,18 @@
 // app/api/geocode/route.ts
 import { NextRequest, NextResponse } from "next/server"
 
+interface NominatimItem {
+  display_name: string
+  lat: string
+  lon: string
+}
+
+interface GeocodeResult {
+  displayName: string
+  lat: number
+  lng: number
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -33,22 +45,20 @@ export async function GET(req: NextRequest) {
     const text = await upstream.text()
     console.log("[GEOCODE] upstream status =", upstream.status)
 
-    
-    let raw: any
+    let raw: unknown
     try {
       raw = JSON.parse(text)
     } catch {
       console.error("[GEOCODE] Nominatim non-JSON:", text.slice(0, 200))
       return NextResponse.json(
         {
-          error: "Upstream did not return JSON",
+          error: "Upstream returned non-JSON",
           status: upstream.status,
         },
         { status: 502 },
       )
     }
 
-    
     if (!Array.isArray(raw)) {
       console.error("[GEOCODE] Nominatim returned non-array:", raw)
       return NextResponse.json(
@@ -61,21 +71,24 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const results = raw.map((item: any) => ({
-      displayName: item.display_name as string,
-      lat: parseFloat(item.lat as string),
-      lng: parseFloat(item.lon as string),
+    const items = raw as NominatimItem[]
+
+    const results: GeocodeResult[] = items.map((item) => ({
+      displayName: item.display_name,
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon),
     }))
 
     console.log("[GEOCODE] results count =", results.length)
 
     return NextResponse.json({ results })
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[GEOCODE] Internal error:", e)
+    const message = e instanceof Error ? e.message : "unknown"
     return NextResponse.json(
       {
         error: "Internal error",
-        details: e?.message ?? "unknown",
+        details: message,
       },
       { status: 500 },
     )

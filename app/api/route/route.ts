@@ -50,11 +50,13 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
     console.log("ORS response sample:", JSON.stringify(data, null, 2)) // TODO DEBUG ВРЕМЕННО: Логи для ответов маршрута
     return NextResponse.json(data)
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(e)
+    const message = e instanceof Error ? e.message : "unknown"
     return NextResponse.json(
-      { error: "Server error", details: e?.message },
+      { error: "Server error", details: message },
       { status: 500 },
     )
   }
 }
+
