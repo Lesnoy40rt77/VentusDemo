@@ -28,6 +28,7 @@ export async function GET() {
 
   const result = posts.map((post) => ({
     ...post,
+    canDelete: user ? post.authorId === user.id : false,
     likedByMe: likedPostIds.has(post.id),
   }))
 

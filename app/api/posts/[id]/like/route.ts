@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
 
   if (!user) {
@@ -15,11 +12,19 @@ export async function POST(
     )
   }
 
-  const postId = params.id
+  // /api/posts/:id/like -> ["", "api", "posts", ":id", "like"]
+  const url = new URL(req.url)
+  const segments = url.pathname.split("/")
+
+  const postsIndex = segments.indexOf("posts")
+  const postId =
+    postsIndex !== -1 && segments.length > postsIndex + 1
+      ? segments[postsIndex + 1]
+      : null
 
   if (!postId) {
     return NextResponse.json(
-      { error: "Не указан ID поста" },
+      { error: "Не удалось определить ID поста" },
       { status: 400 },
     )
   }

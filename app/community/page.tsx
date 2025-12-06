@@ -4,7 +4,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/card"
 import { Button } from "@/components/button"
-import { Heart, MessageCircle } from "lucide-react"
+import { Heart, MessageCircle, Trash } from "lucide-react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
@@ -18,6 +18,7 @@ type Post = {
   route?: { id: string; title: string } | null
   _count: { comments: number; likes: number }
   likedByMe: boolean
+  canDelete: boolean
 }
 
 export default function CommunityPage() {
@@ -80,7 +81,7 @@ export default function CommunityPage() {
     loadPosts()
   }, [])
 
-    const handleToggleLike = async (postId: string) => {
+  const handleToggleLike = async (postId: string) => {
     try {
       const res = await fetch(`/api/posts/${postId}/like`, {
         method: "POST",
@@ -114,6 +115,33 @@ export default function CommunityPage() {
       )
     } catch (e) {
       console.error("Toggle like error:", e)
+    }
+  }
+
+  const handleDeletePost = async (postId: string) => {
+    const confirmDelete = window.confirm(
+      "Точно удалить этот пост? Отменить будет нельзя.",
+    )
+    if (!confirmDelete) return
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/delete`, {
+        method: "POST",
+      })
+
+      if (res.status === 401) {
+        window.location.href = "/auth?next=/community"
+        return
+      }
+
+      if (!res.ok) {
+        console.error("Delete post error:", res.status)
+        return
+      }
+
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
+    } catch (e) {
+      console.error("Delete post error:", e)
     }
   }
 
@@ -305,6 +333,7 @@ export default function CommunityPage() {
                             ? `Нравится (${post._count.likes})`
                             : "Нравится"}
                         </button>
+
                         <button
                           type="button"
                           className="flex items-center gap-1 hover:text-foreground"
@@ -312,6 +341,17 @@ export default function CommunityPage() {
                           <MessageCircle size={14} />
                           Комментарии ({post._count.comments})
                         </button>
+
+                        {post.canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePost(post.id)}
+                            className="flex items-center gap-1 hover:text-foreground"
+                          >
+                            <Trash size={14} />
+                            Удалить
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
