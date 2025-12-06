@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       routeId: parsed.routeId ?? null,
       imageUrl: parsed.imageUrl ?? null,
       authorId: user.id,
-    },
+    } as any,
   })
 
   return NextResponse.json(post)

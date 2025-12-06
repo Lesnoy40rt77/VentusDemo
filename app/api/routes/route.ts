@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       durationHrs: parsed.durationHrs ?? null,
       imageUrl: parsed.imageUrl ?? null,
       creatorId: user.id,
-    },
+    } as any,
   })
 
   return NextResponse.json(route)
