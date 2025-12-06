@@ -21,6 +21,14 @@ type Post = {
   canDelete: boolean
 }
 
+type Comment = {
+  id: string
+  content: string
+  createdAt: string
+  author: { id: string; name: string | null }
+}
+
+
 export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,6 +39,12 @@ export default function CommunityPage() {
   const [postImageUrl, setPostImageUrl] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
+  const [commentText, setCommentText] = useState("")
+  const [commentSubmitting, setCommentSubmitting] = useState(false)
 
   const handlePostImageChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -144,6 +158,95 @@ export default function CommunityPage() {
       console.error("Delete post error:", e)
     }
   }
+
+  const handleToggleComments = async (postId: string) => {
+    if (activeCommentsPostId === postId) {
+      setActiveCommentsPostId(null)
+      setComments([])
+      setCommentsError(null)
+      setCommentText("")
+      return
+    }
+
+    setActiveCommentsPostId(postId)
+    setComments([])
+    setCommentsError(null)
+    setCommentText("")
+    setCommentsLoading(true)
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        cache: "no-store",
+      })
+
+      if (!res.ok) {
+        console.error("Load comments error:", res.status)
+        setCommentsError("Не удалось загрузить комментарии")
+        return
+      }
+
+      const data = (await res.json()) as Comment[]
+      setComments(data)
+    } catch (err) {
+      console.error("Load comments error:", err)
+      setCommentsError("Ошибка загрузки комментариев")
+    } finally {
+      setCommentsLoading(false)
+    }
+  }
+
+  const handleSubmitComment = async (postId: string) => {
+    if (!commentText.trim()) return
+
+    setCommentsError(null)
+    setCommentSubmitting(true)
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: commentText.trim() }),
+      })
+
+      if (res.status === 401) {
+        window.location.href = "/auth?next=/community"
+        return
+      }
+
+      if (!res.ok) {
+        console.error("Create comment error:", res.status)
+        setCommentsError("Не удалось отправить комментарий")
+        return
+      }
+
+      const newComment = (await res.json()) as Comment
+
+      setComments((prev) => [...prev, newComment])
+      setCommentText("")
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                _count: {
+                  ...p._count,
+                  comments: p._count.comments + 1,
+                },
+              }
+            : p,
+        ),
+      )
+    } catch (err) {
+      console.error("Create comment error:", err)
+      setCommentsError("Ошибка отправки комментария")
+    } finally {
+      setCommentSubmitting(false)
+    }
+  }
+
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -336,6 +439,7 @@ export default function CommunityPage() {
 
                         <button
                           type="button"
+                          onClick={() => handleToggleComments(post.id)}
                           className="flex items-center gap-1 hover:text-foreground"
                         >
                           <MessageCircle size={14} />
@@ -353,6 +457,75 @@ export default function CommunityPage() {
                           </button>
                         )}
                       </div>
+                      {activeCommentsPostId === post.id && (
+                        <div className="mt-3 border-t border-border pt-3 space-y-3">
+                          {commentsError && (
+                            <p className="text-xs text-red-500">
+                              {commentsError}
+                            </p>
+                          )}
+
+                          {commentsLoading ? (
+                            <p className="text-xs text-foreground/60">
+                              Загружаем комментарии...
+                            </p>
+                          ) : comments.length === 0 ? (
+                            <p className="text-xs text-foreground/60">
+                              Пока комментариев нет. Напишите первый!
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {comments.map((comment) => (
+                                <div key={comment.id} className="text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="font-medium">
+                                      {comment.author.name || "Аноним"}
+                                    </span>
+                                    <span className="text-foreground/60">
+                                      {new Date(
+                                        comment.createdAt,
+                                      ).toLocaleString("ru-RU", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p className="text-foreground/80">
+                                    {comment.content}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault()
+                              void handleSubmitComment(post.id)
+                            }}
+                            className="flex gap-2"
+                          >
+                            <input
+                              type="text"
+                              value={commentText}
+                              onChange={(e) => setCommentText(e.target.value)}
+                              className="flex-1 px-3 py-1.5 rounded-md border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Напишите комментарий…"
+                            />
+                            <Button
+                              type="submit"
+                              disabled={
+                                commentSubmitting || !commentText.trim()
+                              }
+                              className="px-3 py-1.5 text-xs"
+                            >
+                              {commentSubmitting ? "Отправляем..." : "Отправить"}
+                            </Button>
+                          </form>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Card>

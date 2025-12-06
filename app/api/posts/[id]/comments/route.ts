@@ -3,13 +3,44 @@ import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
 import { z } from "zod"
 
-interface Params {
-  params: { id: string }
+const createCommentSchema = z.object({
+  content: z.string().min(1).max(2000),
+})
+
+type RouteParams = {
+  params: { id?: string }
 }
 
-export async function GET(req: NextRequest, { params }: Params) {
+function resolvePostId(req: NextRequest, params?: { id?: string }): string | null {
+  if (params?.id) {
+    return params.id
+  }
+
+  try {
+    const url = new URL(req.url)
+    const segments = url.pathname.split("/")
+    const postsIndex = segments.indexOf("posts")
+    if (postsIndex !== -1 && segments.length > postsIndex + 1) {
+      return segments[postsIndex + 1]
+    }
+  } catch {
+  }
+
+  return null
+}
+
+export async function GET(req: NextRequest, { params }: RouteParams) {
+  const postId = resolvePostId(req, params)
+
+  if (!postId) {
+    return NextResponse.json(
+      { error: "Не удалось определить ID поста" },
+      { status: 400 },
+    )
+  }
+
   const comments = await prisma.comment.findMany({
-    where: { postId: params.id },
+    where: { postId },
     orderBy: { createdAt: "asc" },
     include: {
       author: { select: { id: true, name: true } },
@@ -19,13 +50,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   return NextResponse.json(comments)
 }
 
-const createCommentSchema = z.object({
-  content: z.string().min(1).max(2000),
-})
-
-
-export async function POST(req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: RouteParams) {
   const user = await getCurrentUser()
+
   if (!user) {
     return NextResponse.json(
       { error: "Необходима авторизация" },
@@ -33,7 +60,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     )
   }
 
-  let parsed
+  const postId = resolvePostId(req, params)
+
+  if (!postId) {
+    return NextResponse.json(
+      { error: "Не удалось определить ID поста" },
+      { status: 400 },
+    )
+  }
+
+  let parsed: z.infer<typeof createCommentSchema>
   try {
     const body = await req.json()
     parsed = createCommentSchema.parse(body)
@@ -57,8 +93,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   const comment = await prisma.comment.create({
     data: {
       content: parsed.content,
-      postId: params.id,
+      postId,
       authorId: user.id,
+    },
+    include: {
+      author: { select: { id: true, name: true } },
     },
   })
 
