@@ -1,111 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
-import {
-  MapContainer,
-  TileLayer,
-  Polyline,
-  CircleMarker,
-  useMap,
-} from "react-leaflet"
-import { latLngBounds, type LatLngExpression } from "leaflet"
-import "leaflet/dist/leaflet.css"
-import { MAP_TILE_URL } from "@/lib/mapConfig"
+import dynamic from "next/dynamic"
+import type { RouteStaticMapProps } from "./route-static-map-client"
 
-type LatLng = { lat: number; lng: number }
+const RouteStaticMap = dynamic<RouteStaticMapProps>(
+  () => import("./route-static-map-client"),
+  {
+    ssr: false,
+  },
+)
 
-interface RouteStaticMapProps {
-  points: LatLng[]
-  center: LatLng
-}
-
-function smoothPath(points: LatLng[]): LatLng[] {
-  if (points.length <= 2) return points
-
-  const smoothed: LatLng[] = [points[0]]
-
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1]
-    const curr = points[i]
-    const next = points[i + 1]
-
-    smoothed.push({
-      lat: (prev.lat + curr.lat + next.lat) / 3,
-      lng: (prev.lng + curr.lng + next.lng) / 3,
-    })
-  }
-
-  smoothed.push(points[points.length - 1])
-  return smoothed
-}
-
-function MapViewUpdater({
-  center,
-  points,
-}: {
-  center: LatLng
-  points: LatLng[]
-}) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (!map) return
-
-    if (points.length > 1) {
-      const bounds = latLngBounds(
-        points.map((p) => [p.lat, p.lng] as [number, number]),
-      )
-      map.flyToBounds(bounds, {
-        padding: [20, 20],
-      })
-    } else {
-      map.flyTo([center.lat, center.lng], 9)
-    }
-  }, [map, center.lat, center.lng, points])
-
-  return null
-}
-
-export default function RouteStaticMap({ points, center }: RouteStaticMapProps) {
-  const centerPos: LatLngExpression = [center.lat, center.lng]
-  const smoothedPoints = smoothPath(points)
-  const polyPoints: LatLngExpression[] = smoothedPoints.map((p) => [
-    p.lat,
-    p.lng,
-  ])
-
-  return (
-    <div className="w-full aspect-video rounded-lg overflow-hidden border border-border">
-      <MapContainer
-        center={centerPos}
-        zoom={9}
-        scrollWheelZoom={false}
-        className="w-full h-full"
-        attributionControl={false}
-      >
-        <TileLayer url={MAP_TILE_URL} />
-
-        {/* следим за сменой маршрута / центра */}
-        <MapViewUpdater center={center} points={smoothedPoints} />
-
-        {smoothedPoints.map((p, index) => (
-          <CircleMarker
-            key={`${p.lat}-${p.lng}-${index}`}
-            center={[p.lat, p.lng]}
-            radius={2}
-          />
-        ))}
-
-        {smoothedPoints.length > 1 && (
-          <Polyline
-            positions={polyPoints}
-            weight={4}
-            smoothFactor={1}
-            lineCap="round"
-            lineJoin="round"
-          />
-        )}
-      </MapContainer>
-    </div>
-  )
-}
+export default RouteStaticMap

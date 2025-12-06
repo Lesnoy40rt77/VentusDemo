@@ -44,17 +44,16 @@ async function getPopularRoutes(): Promise<RouteItem[]> {
   const routes = await prisma.route.findMany({
     take: 3,
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      distanceKm: true,
-      durationHrs: true,
-      imageUrl: true,
-      points: true,
-    },
   })
 
-  return routes as RouteItem[]
+  return routes.map((r) => ({
+    id: r.id,
+    title: r.title,
+    distanceKm: r.distanceKm,
+    durationHrs: r.durationHrs,
+    imageUrl: (r as any).imageUrl ?? null,
+    points: (r as any).points ?? null,
+  }))
 }
 
 export default async function LandingPage() {
