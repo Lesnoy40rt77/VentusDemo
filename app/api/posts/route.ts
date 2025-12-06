@@ -9,7 +9,7 @@ export async function GET() {
     include: {
       author: { select: { id: true, name: true } },
       route: { select: { id: true, title: true } },
-      _count: { select: { comments: true } },
+      _count: { select: { comments: true, likes: true } },
     },
   })
 
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       routeId: parsed.routeId ?? null,
       imageUrl: parsed.imageUrl ?? null,
       authorId: user.id,
-    } as any,
+    },
   })
 
   return NextResponse.json(post)

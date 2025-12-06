@@ -16,6 +16,7 @@ model User {
 
   routes   Route[]
   posts    Post[]
+  postLikes PostLike[]
   comments Comment[]
   sessions Session[]
 }
@@ -58,7 +59,21 @@ model Post {
   route   Route?  @relation(fields: [routeId], references: [id])
   routeId String?
 
+  likes    PostLike[]
   comments Comment[]
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String
+
+  @@unique([userId, postId])
 }
 
 model Comment {
