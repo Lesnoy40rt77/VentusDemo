@@ -26,6 +26,7 @@ type Comment = {
   content: string
   createdAt: string
   author: { id: string; name: string | null }
+  canDelete: boolean
 }
 
 
@@ -45,6 +46,7 @@ export default function CommunityPage() {
   const [commentsError, setCommentsError] = useState<string | null>(null)
   const [commentText, setCommentText] = useState("")
   const [commentSubmitting, setCommentSubmitting] = useState(false)
+  const [commentDeletingId, setCommentDeletingId] = useState<string | null>(null)
 
   const handlePostImageChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -246,7 +248,58 @@ export default function CommunityPage() {
       setCommentSubmitting(false)
     }
   }
+  
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    const confirmDelete = window.confirm(
+      "Точно удалить комментарий? Отменить будет нельзя.",
+    )
+    if (!confirmDelete) return
 
+    setCommentsError(null)
+    setCommentDeletingId(commentId)
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ commentId }),
+      })
+
+      if (res.status === 401) {
+        window.location.href = "/auth?next=/community"
+        return
+      }
+
+      if (!res.ok) {
+        console.error("Delete comment error:", res.status)
+        setCommentsError("Не удалось удалить комментарий")
+        return
+      }
+
+      setComments((prev) => prev.filter((c) => c.id !== commentId))
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                _count: {
+                  ...p._count,
+                  comments: Math.max(0, p._count.comments - 1),
+                },
+              }
+            : p,
+        ),
+      )
+    } catch (err) {
+      console.error("Delete comment error:", err)
+      setCommentsError("Ошибка при удалении комментария")
+    } finally {
+      setCommentDeletingId(null)
+    }
+  }
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -477,20 +530,32 @@ export default function CommunityPage() {
                             <div className="space-y-2">
                               {comments.map((comment) => (
                                 <div key={comment.id} className="text-xs">
-                                  <div className="flex justify-between">
+                                  <div className="flex justify-between items-center gap-2">
                                     <span className="font-medium">
                                       {comment.author.name || "Аноним"}
                                     </span>
-                                    <span className="text-foreground/60">
-                                      {new Date(
-                                        comment.createdAt,
-                                      ).toLocaleString("ru-RU", {
-                                        day: "2-digit",
-                                        month: "short",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </span>
+                                    <div className="flex items-center gap-2 text-foreground/60">
+                                      <span>
+                                        {new Date(
+                                          comment.createdAt,
+                                        ).toLocaleString("ru-RU", {
+                                          day: "2-digit",
+                                          month: "short",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                      {comment.canDelete && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteComment(post.id, comment.id)}
+                                          disabled={commentDeletingId === comment.id}
+                                          className="flex items-center gap-1 hover:text-red-500"
+                                        >
+                                          <Trash size={12} />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                   <p className="text-foreground/80">
                                     {comment.content}
