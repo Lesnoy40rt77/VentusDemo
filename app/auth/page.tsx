@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Card } from "@/components/card"
@@ -14,10 +14,16 @@ export default function AuthPage() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [next, setNext] = useState("/dashboard")
 
   const router = useRouter()
-  const params = useSearchParams()
-  const next = params.get("next") || "/dashboard"
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    const value = params.get("next")
+    if (value) setNext(value)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
