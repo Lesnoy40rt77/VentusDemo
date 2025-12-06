@@ -75,13 +75,12 @@ export default function RouteDiscussionClient({
         title: data.title,
         content: data.content,
         createdAt: data.createdAt,
-        imageUrl: imageUrl ?? null,
+        imageUrl: data.imageUrl ?? null,
         author: data.author ?? {
           id: "",
           name: "Автор",
         },
       }
-
 
       setPosts((prev) => [newPost, ...prev])
       setTitle("")
@@ -116,7 +115,7 @@ export default function RouteDiscussionClient({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 rounded-md border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            className="w-full px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             placeholder="Например, Как прошёл наш поход по этому маршруту"
           />
         </div>
@@ -125,13 +124,15 @@ export default function RouteDiscussionClient({
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full px-3 py-2 rounded-md border border-border bg-input focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[80px]"
-            placeholder="Расскажите, как всё прошло, что понравилось и что стоит учесть другим."
+            className="w-full px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[80px] resize-y"
+            placeholder="Поделитесь впечатлениями, сложностями и советами для других"
           />
         </div>
+
         {error && (
           <p className="text-xs text-red-500">{error}</p>
         )}
+
         <Button
           type="submit"
           className="w-full text-sm"
@@ -145,31 +146,35 @@ export default function RouteDiscussionClient({
       <div className="space-y-3 pt-2 border-t border-border/60">
         {posts.length === 0 ? (
           <p className="text-xs text-foreground/60">
-            Пока никто не писал про этот маршрут. Будьте первым!
+            Пока никто не оставил постов об этом маршруте.
+            Будьте первым!
           </p>
         ) : (
           posts.map((post) => (
-            <div key={post.id} className="text-sm">
-              <div className="flex items-start gap-2">
-                <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-[11px]">
-                  {post.author.name?.[0]?.toUpperCase() || "?"}
+            <div
+              key={post.id}
+              className="flex items-start gap-3 pb-2 border-b border-border/40 last:border-0"
+            >
+              <div className="mt-1">
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MessageCircle className="w-4 h-4 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-xs">
-                      {post.author.name || "Аноним"}
-                    </span>
-                    <span className="text-[10px] text-foreground/50 flex items-center gap-1">
-                      <MessageCircle size={10} />
-                      {new Date(post.createdAt).toLocaleDateString(
-                        "ru-RU",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                        },
-                      )}
-                    </span>
-                  </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-foreground/80">
+                    {post.author?.name ?? "Автор"}
+                  </p>
+                  <p className="text-[10px] text-foreground/50">
+                    {new Date(post.createdAt).toLocaleString("ru-RU", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="mt-0.5">
                   <p className="text-xs font-semibold mb-0.5">
                     {post.title}
                   </p>
