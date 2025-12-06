@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -88,6 +88,11 @@ export default function RoutePage() {
   const [weather, setWeather] = useState<WeatherResponse | null>(null)
 
   const [loadingWeather, setLoadingWeather] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const router = useRouter()
 
   useEffect(() => {
   if (!id) {
@@ -136,6 +141,29 @@ export default function RoutePage() {
 
   run()
 }, [id])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadMe() {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled) {
+          setCurrentUserId(data.user?.id ?? null)
+        }
+      } catch {
+      }
+    }
+
+    loadMe()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
 
   const points = useMemo(
     () => normalizePoints(route?.points ?? []),
@@ -200,6 +228,42 @@ export default function RoutePage() {
     })
   }, [route])
 
+  const canDeleteRoute =
+    currentUserId != null &&
+    route != null &&
+    currentUserId === route.creator.id
+
+  const handleDeleteRoute = async () => {
+    if (!route) return
+
+    const confirmed = window.confirm(
+      "Удалить этот маршрут? Это действие необратимо.",
+    )
+    if (!confirmed) return
+
+    setDeleteError(null)
+    setDeleting(true)
+
+    try {
+      const res = await fetch(`/api/routes/${route.id}`, {
+        method: "DELETE",
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setDeleteError((data as any).error || "Не удалось удалить маршрут")
+        return
+      }
+
+      router.push("/database")
+    } catch (e) {
+      console.error("Delete route error", e)
+      setDeleteError("Ошибка при удалении маршрута")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -258,15 +322,36 @@ export default function RoutePage() {
               </p>
             </div>
 
-            <div className="text-sm text-foreground/70 space-y-1">
-              <p>
-                Автор:{" "}
-                <span className="font-medium">
-                  {route.creator.name || "Аноним"}
-                </span>
-              </p>
-              <p>Создан: {createdAtText}</p>
+            <div className="text-sm text-foreground/70 space-y-2 md:text-right">
+              <div>
+                <p>
+                  Автор:{" "}
+                  <span className="font-medium">
+                    {route.creator.name || "Аноним"}
+                  </span>
+                </p>
+                <p>Создан: {createdAtText}</p>
+              </div>
+
+              {deleteError && (
+                <p className="text-xs text-red-500 max-w-xs md:ml-auto">
+                  {deleteError}
+                </p>
+              )}
+
+              {canDeleteRoute && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-1 text-red-600 border-red-500/60 hover:bg-red-500/10"
+                  onClick={handleDeleteRoute}
+                  disabled={deleting}
+                >
+                  {deleting ? "Удаляем..." : "Удалить маршрут"}
+                </Button>
+              )}
             </div>
+
           </div>
         </section>
 

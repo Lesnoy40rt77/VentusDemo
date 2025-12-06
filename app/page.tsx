@@ -164,61 +164,74 @@ export default async function LandingPage() {
           <h2 className="text-4xl font-semibold text-center mb-16">
             Популярные маршруты
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {popularRoutes.map((route) => {
-              const hasPoints = Array.isArray(route.points) && route.points.length > 0
-              let center: RoutePoint | null = null
 
-              if (hasPoints) {
-                center = getRouteCenter(route.points as RoutePoint[])
-              }
+          {popularRoutes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+              <p>Пока нет ни одного маршрута.</p>
+              <Button asChild variant="outline">
+                <Link href="/builder">Создать первый маршрут</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {popularRoutes.map((route) => {
+                const hasPoints =
+                  Array.isArray(route.points) && route.points.length > 0
+                let center: RoutePoint | null = null
 
-              return (
-                <Card key={route.id} className="flex flex-col">
-                  {route.imageUrl ? (
-                    <div className="mb-4 overflow-hidden rounded-lg border border-border bg-black/5 flex items-center justify-center">
-                      <img
-                        src={route.imageUrl}
-                        alt={route.title}
-                        className="max-h-64 w-auto object-contain"
-                      />
+                if (hasPoints) {
+                  center = getRouteCenter(route.points as RoutePoint[])
+                }
+
+                return (
+                  <Card key={route.id} className="flex flex-col">
+                    {route.imageUrl ? (
+                      <div className="mb-4 overflow-hidden rounded-lg border border-border bg-black/5 flex items-center justify-center">
+                        <img
+                          src={route.imageUrl}
+                          alt={route.title}
+                          className="max-h-64 w-auto object-contain"
+                        />
+                      </div>
+                    ) : hasPoints && center ? (
+                      <div className="mb-4 rounded-lg overflow-hidden">
+                        <RouteStaticMap
+                          points={route.points as RoutePoint[]}
+                          center={center}
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video mb-4 flex items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                        Обложка маршрута появится здесь
+                      </div>
+                    )}
+
+                    <div className="flex-1 flex flex-col px-4 pb-4">
+                      <h3 className="text-lg font-semibold mb-1">
+                        {route.title}
+                      </h3>
+
+                      <RouteCardWeatherChip points={route.points} />
+
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {route.distanceKm.toFixed(1)} км ·{" "}
+                        {route.durationHrs
+                          ? `${route.durationHrs.toFixed(1)} ч в пути`
+                          : "время рассчитывается автоматически"}
+                      </p>
+
+                      <Button asChild variant="outline" className="mt-auto">
+                        <a href={`/route/${route.id}`}>Открыть маршрут</a>
+                      </Button>
                     </div>
-                  ) : hasPoints && center ? (
-                    <div className="mb-4 rounded-lg overflow-hidden">
-                      <RouteStaticMap
-                        points={route.points as RoutePoint[]}
-                        center={center}
-                      />
-                    </div>
-                  ) : (
-                    <div className="aspect-video mb-4 flex items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
-                      {/* заглушка, если ни обложки, ни точек */}
-                      Обложка маршрута появится здесь
-                    </div>
-                  )}
-
-                  <div className="flex-1 flex flex-col px-4 pb-4">
-                    <h3 className="text-lg font-semibold mb-1">{route.title}</h3>
-
-                    <RouteCardWeatherChip points={route.points} />
-
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {route.distanceKm.toFixed(1)} км ·{" "}
-                      {route.durationHrs
-                        ? `${route.durationHrs.toFixed(1)} ч в пути`
-                        : "время рассчитывается автоматически"}
-                    </p>
-
-                    <Button asChild variant="outline" className="mt-auto">
-                      <a href={`/route/${route.id}`}>Открыть маршрут</a>
-                    </Button>
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       </section>
+
 
       {/* Preparation Timeline Section */}
       <section className="py-20 bg-muted/30 relative overflow-hidden">
