@@ -16,7 +16,8 @@ type Post = {
   imageUrl: string | null
   author: { id: string; name: string | null }
   route?: { id: string; title: string } | null
-  _count: { comments: number }
+  _count: { comments: number; likes: number }
+  likedByMe: boolean
 }
 
 export default function CommunityPage() {
@@ -62,8 +63,6 @@ export default function CommunityPage() {
     }
   }
 
-
-
   const loadPosts = async () => {
     try {
       setLoading(true)
@@ -80,6 +79,43 @@ export default function CommunityPage() {
   useEffect(() => {
     loadPosts()
   }, [])
+
+    const handleToggleLike = async (postId: string) => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/like`, {
+        method: "POST",
+      })
+
+      if (res.status === 401) {
+        window.location.href = "/auth?next=/community"
+        return
+      }
+
+      if (!res.ok) {
+        console.error("Toggle like error:", res.status)
+        return
+      }
+
+      const data = (await res.json()) as {
+        liked: boolean
+        likesCount: number
+      }
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                likedByMe: data.liked,
+                _count: { ...p._count, likes: data.likesCount },
+              }
+            : p,
+        ),
+      )
+    } catch (e) {
+      console.error("Toggle like error:", e)
+    }
+  }
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -256,10 +292,18 @@ export default function CommunityPage() {
                       <div className="mt-3 flex items-center gap-4 text-xs text-foreground/60">
                         <button
                           type="button"
-                          className="flex items-center gap-1 hover:text-foreground"
+                          onClick={() => handleToggleLike(post.id)}
+                          className={`flex items-center gap-1 hover:text-foreground ${
+                            post.likedByMe ? "text-red-500" : ""
+                          }`}
                         >
-                          <Heart size={14} />
-                          Нравится
+                          <Heart
+                            size={14}
+                            className={post.likedByMe ? "fill-current" : ""}
+                          />
+                          {post._count.likes > 0
+                            ? `Нравится (${post._count.likes})`
+                            : "Нравится"}
                         </button>
                         <button
                           type="button"

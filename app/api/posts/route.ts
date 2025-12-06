@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth"
 import { z } from "zod"
 
 export async function GET() {
+  const user = await getCurrentUser()
+
   const posts = await prisma.post.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -13,7 +15,23 @@ export async function GET() {
     },
   })
 
-  return NextResponse.json(posts)
+  let likedPostIds = new Set<string>()
+
+  if (user) {
+    const likes = await prisma.postLike.findMany({
+      where: { userId: user.id },
+      select: { postId: true },
+    })
+
+    likedPostIds = new Set(likes.map((l) => l.postId))
+  }
+
+  const result = posts.map((post) => ({
+    ...post,
+    likedByMe: likedPostIds.has(post.id),
+  }))
+
+  return NextResponse.json(result)
 }
 
 const createPostSchema = z.object({

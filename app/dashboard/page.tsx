@@ -42,7 +42,8 @@ type PostItem = {
     id: string
     title: string
   } | null
-  _count: { comments: number }
+  _count: { comments: number; likes: number }
+  likedByMe: boolean
 }
 
 export default function DashboardPage() {

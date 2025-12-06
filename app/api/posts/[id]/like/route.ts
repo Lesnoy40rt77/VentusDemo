@@ -2,32 +2,30 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
 
-type RouteParams = {
-  params: { id?: string }
-}
-
-export async function POST(_req: NextRequest, { params }: RouteParams) {
-  const postId = params.id
-
-  if (!postId) {
-    return NextResponse.json(
-      { error: "ID поста не указан" },
-      { status: 400 },
-    )
-  }
-
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
   const user = await getCurrentUser()
 
   if (!user) {
     return NextResponse.json(
-      { error: "Требуется авторизация" },
+      { error: "Необходима авторизация" },
       { status: 401 },
+    )
+  }
+
+  const postId = params.id
+
+  if (!postId) {
+    return NextResponse.json(
+      { error: "Не указан ID поста" },
+      { status: 400 },
     )
   }
 
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true },
   })
 
   if (!post) {
@@ -37,18 +35,16 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     )
   }
 
-  const existing = await prisma.postLike.findUnique({
+  const existingLike = await prisma.postLike.findFirst({
     where: {
-      userId_postId: {
-        userId: user.id,
-        postId,
-      },
+      userId: user.id,
+      postId,
     },
   })
 
-  if (existing) {
+  if (existingLike) {
     await prisma.postLike.delete({
-      where: { id: existing.id },
+      where: { id: existingLike.id },
     })
   } else {
     await prisma.postLike.create({
@@ -64,7 +60,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
   })
 
   return NextResponse.json({
-    liked: !existing,
+    liked: !existingLike,
     likesCount,
   })
 }
